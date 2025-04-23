@@ -3,6 +3,7 @@ package com.bigBrother.api.filters;
 import com.bigBrother.api.services.JwtService;
 import com.bigBrother.api.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,12 +26,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private UserRepository userRepository;
 
+    @Value("${internal.api.token}")
+    private String internalApiToken;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String username;
+
+        // Permitir autenticación por token interno para /api/cameras
+        String path = request.getRequestURI();
+        if (path.startsWith("/api/cameras")) {
+            if (authHeader != null && authHeader.equals("Bearer " + internalApiToken)) {
+                // Autenticación interna: crea un token de autenticación simple
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken("internal-service", null, java.util.Collections.emptyList());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+                chain.doFilter(request, response);
+                return;
+            }
+        }
 
         // Verifica si el encabezado contiene el token JWT
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
