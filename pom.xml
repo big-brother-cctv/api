@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.bigBrother</groupId>
 	<artifactId>api</artifactId>
-	<version>0.1.4-SNAPSHOT</version>
+	<version>v0.1.5</version>
 	<name>api</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
