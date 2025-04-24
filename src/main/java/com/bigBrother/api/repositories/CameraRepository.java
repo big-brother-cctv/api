@@ -8,5 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface CameraRepository extends JpaRepository<CameraModel, Long> {
-    Optional<CameraModel> findByName(String name);
+    Optional<CameraModel> findByNameIgnoreCase(String name);
 }

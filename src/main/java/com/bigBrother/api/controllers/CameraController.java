@@ -28,9 +28,28 @@ public class CameraController {
 
     // Create a new camera
     @PostMapping
-    public CameraDTO createCamera(@RequestBody CameraModel camera) {
+    public ResponseEntity<?> createCamera(@RequestBody CameraModel camera) {
+        if (camera.getName() == null || camera.getName().trim().isEmpty()) {
+            ErrorResponse errorResponse = new ErrorResponse("Camera name is required", "Invalid camera name");
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        }
+        String normalizedName = camera.getName().trim();
+        var existingCameraOpt = cameraRepository.findByNameIgnoreCase(normalizedName);
+        if (existingCameraOpt.isPresent()) {
+            CameraModel existingCamera = existingCameraOpt.get();
+            String message = String.format(
+                "Camera name '%s' already exists (id: %d, device: %s, resolution: %s, fps: %s)",
+                existingCamera.getName(),
+                existingCamera.getId(),
+                existingCamera.getDevice(),
+                existingCamera.getResolution(),
+                existingCamera.getFps()
+            );
+            ErrorResponse errorResponse = new ErrorResponse(message, "Duplicate camera name");
+            return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+        }
         CameraModel savedCamera = cameraRepository.save(camera);
-        return convertToDTO(savedCamera);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToDTO(savedCamera));
     }
 
     // Get a camera by ID
@@ -73,6 +92,15 @@ public class CameraController {
         cameraRepository.delete(camera);
 
         return ResponseEntity.noContent().build();
+    }
+
+    // Search cameras by name
+    @GetMapping("/search")
+    public List<CameraDTO> searchCamerasByName(@RequestParam("name") String name) {
+        return cameraRepository.findAll().stream()
+                .filter(cam -> cam.getName() != null && cam.getName().toLowerCase().contains(name.toLowerCase()))
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     // Convert CameraModel to CameraDTO
