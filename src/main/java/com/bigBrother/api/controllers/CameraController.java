@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Controller for managing camera resources.
+ */
 @RestController
 @RequestMapping("/api/cameras")
 public class CameraController {
@@ -20,13 +23,22 @@ public class CameraController {
     @Autowired
     private CameraRepository cameraRepository;
 
-    // Get all cameras
+    /**
+     * Retrieves all cameras.
+     *
+     * @return List of CameraDTO objects.
+     */
     @GetMapping
     public List<CameraDTO> getAllCameras() {
         return cameraRepository.findAll().stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
-    // Create a new camera
+    /**
+     * Creates a new camera if the name is unique.
+     *
+     * @param camera The camera model to create.
+     * @return The created CameraDTO or error response.
+     */
     @PostMapping
     public ResponseEntity<?> createCamera(@RequestBody CameraModel camera) {
         if (camera.getName() == null || camera.getName().trim().isEmpty()) {
@@ -52,7 +64,12 @@ public class CameraController {
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDTO(savedCamera));
     }
 
-    // Get a camera by ID
+    /**
+     * Retrieves a camera by its ID.
+     *
+     * @param id The camera ID.
+     * @return The CameraDTO if found.
+     */
     @GetMapping("/{id}")
     public ResponseEntity<CameraDTO> getCameraById(@PathVariable Long id) {
         CameraModel camera = cameraRepository.findById(id)
@@ -60,7 +77,13 @@ public class CameraController {
         return ResponseEntity.ok(convertToDTO(camera));
     }
 
-    // Update a camera
+    /**
+     * Updates a camera by its ID.
+     *
+     * @param id The camera ID.
+     * @param cameraDetails The camera details to update.
+     * @return The updated CameraDTO.
+     */
     @PutMapping("/{id}")
     public CameraDTO updateCamera(@PathVariable Long id, @RequestBody CameraModel cameraDetails) {
         CameraModel camera = cameraRepository.findById(id)
@@ -82,7 +105,12 @@ public class CameraController {
         return convertToDTO(updatedCamera);
     }
 
-    // Delete a camera
+    /**
+     * Deletes a camera by its ID.
+     *
+     * @param id The camera ID.
+     * @return No content response if deleted.
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCamera(@PathVariable Long id) {
         CameraModel camera = cameraRepository.findById(id)
@@ -94,7 +122,12 @@ public class CameraController {
         return ResponseEntity.noContent().build();
     }
 
-    // Search cameras by name
+    /**
+     * Searches cameras by name.
+     *
+     * @param name The name to search for.
+     * @return List of CameraDTO objects matching the name.
+     */
     @GetMapping("/search")
     public List<CameraDTO> searchCamerasByName(@RequestParam("name") String name) {
         return cameraRepository.findAll().stream()

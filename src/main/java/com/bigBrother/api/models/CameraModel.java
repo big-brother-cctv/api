@@ -3,6 +3,7 @@ package com.bigBrother.api.models;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "cameras")
 public class CameraModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

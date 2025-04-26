@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.*;
 
 import com.bigBrother.api.repositories.UserRepository;
 
+/**
+ * Controller for authentication endpoints such as login and registration.
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -29,6 +32,12 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
+    /**
+     * Authenticates a user and returns a JWT token if credentials are valid.
+     *
+     * @param authRequest The authentication request containing username and password.
+     * @return JWT token if authentication is successful, otherwise an error response.
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest authRequest) {
         try {
@@ -42,8 +51,16 @@ public class AuthController {
         }
     }
 
+    /**
+     * Registers a new user if the username and email are unique.
+     *
+     * @param user The user model containing registration details.
+     * @return Success message or error if username/email already exists.
+     */
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody UserModel user) {
+        System.out.println("Intentando registrar usuario: " + user.getUsername());
+        System.out.println("Resultado de findByUsername: " + userRepository.findByUsername(user.getUsername()));
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
         }
@@ -58,6 +75,9 @@ public class AuthController {
     }
 }
 
+/**
+ * Request body for authentication containing username and password.
+ */
 class AuthRequest {
     private String username;
     private String password;
@@ -80,6 +100,9 @@ class AuthRequest {
     }
 }
 
+/**
+ * Response containing the JWT token.
+ */
 class AuthResponse {
     private String token;
 

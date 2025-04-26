@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 @Entity
+@Table(name = "users")
 public class UserModel implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,12 +19,14 @@ public class UserModel implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(nullable = false)
+    private String hashedPassword;
+
     private String name;
-    private String hashedPassword = "";
     private boolean disabled = true;
     private String photo = "";
 
-    // Getters y setters
+    // Getters and setters
     public Long getId() {
         return id;
     }

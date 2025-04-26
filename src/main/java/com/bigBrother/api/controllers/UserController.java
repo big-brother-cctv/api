@@ -15,6 +15,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Controller for managing user resources.
+ */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -22,20 +25,34 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
-    // Get all users
+    /**
+     * Retrieves all users.
+     *
+     * @return List of UserDTO objects.
+     */
     @GetMapping
     public List<UserDTO> getAllUsers() {
         return userRepository.findAll().stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
-    // Create a new user
+    /**
+     * Creates a new user.
+     *
+     * @param user The user model to create.
+     * @return The created UserDTO.
+     */
     @PostMapping
     public UserDTO createUser(@RequestBody UserModel user) {
         UserModel savedUser = userRepository.save(user);
         return convertToDTO(savedUser);
     }
 
-    // Get my user details
+    /**
+     * Retrieves the currently authenticated user's details.
+     *
+     * @param userDetails The authenticated user's details.
+     * @return The UserDTO of the current user.
+     */
     @GetMapping("/me")
     public ResponseEntity<UserDTO> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
         String username = userDetails.getUsername();
@@ -44,7 +61,12 @@ public class UserController {
         return ResponseEntity.ok(convertToDTO(user));
     }
 
-    // Get a user by ID
+    /**
+     * Retrieves a user by their ID.
+     *
+     * @param id The user ID.
+     * @return The UserDTO if found.
+     */
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
         UserModel user = userRepository.findById(id)
@@ -52,7 +74,13 @@ public class UserController {
         return ResponseEntity.ok(convertToDTO(user));
     }
 
-    // Update a user
+    /**
+     * Updates a user by their ID.
+     *
+     * @param id The user ID.
+     * @param userDetails The user details to update.
+     * @return The updated UserDTO.
+     */
     @PutMapping("/{id}")
     public UserDTO updateUser(@PathVariable Long id, @RequestBody UserModel userDetails) {
         UserModel user = userRepository.findById(id)
@@ -68,7 +96,12 @@ public class UserController {
         return convertToDTO(updatedUser);
     }
 
-    // Delete a user
+    /**
+     * Deletes a user by their ID.
+     *
+     * @param id The user ID.
+     * @return No content response if deleted.
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         UserModel user = userRepository.findById(id)
