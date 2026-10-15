@@ -1,95 +1,39 @@
-# API
+# Big Brother CCTV - Core API (Go)
 
-This is the main REST API for the Big Brother project, built with Spring Boot.
+Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** con Gin y GORM para PostgreSQL.
 
-## Features
+## Características
+- Autenticación JWT stateless (`/api/auth/login`, `/api/auth/register`).
+- Soporte para token interno (`INTERNAL_TOKEN`) para agentes y cámaras físicas sin login de usuario.
+- Gestión y configuración de cámaras en tiempo real (`/api/cameras`).
+- Búsqueda de cámaras por nombre (`/api/cameras/search?name=...`).
+- Gestión de usuarios y perfil actual (`/api/users`, `/api/users/me`).
+- Proxy de subida de imágenes y vídeos para CDN / content manager (`/api/upload/image`, `/api/upload/video`).
+- Health checks compatibles (`/actuator/health`).
+- CORS configurado para clientes web y credenciales.
 
-- User authentication and registration with JWT
-- Camera management (CRUD operations)
-- Error handling with custom responses
-- Integration with other services in the Big Brother ecosystem
+## Variables de Entorno
+| Variable | Descripción | Valor por Defecto |
+|---|---|---|
+| `PORT` | Puerto HTTP del servidor | `8080` |
+| `DB_HOST` | Host de PostgreSQL | `localhost` |
+| `DB_PORT` | Puerto de PostgreSQL | `5432` |
+| `DB_USER` | Usuario de PostgreSQL | `admin` |
+| `DB_PASSWORD` | Contraseña de PostgreSQL | `admin` |
+| `DB_NAME` | Base de datos | `bigbrother` |
+| `DB_SSLMODE` | Modo SSL de conexión a DB | `disable` |
+| `JWT_SECRET` | Clave secreta HMAC-SHA256 | `8Q4n5v1Qw8v9wF3n...` |
+| `INTERNAL_TOKEN` | Token para comunicación con agente cámara | `internal-token-dev` |
+| `CONTENT_MANAGER_URL` | URL del servicio content manager | `http://content-manager:8181` |
 
-## Requirements
+## Comandos Rápidos
+```bash
+# Compilar binario
+go build -o bin/server ./cmd/server
 
-- Java 17+
-- Maven 3.8+
-- PostgreSQL database
+# Ejecutar en desarrollo
+go run ./cmd/server
 
-## Getting Started
-
-Clone the repository and navigate to the `api` directory:
-
-```sh
-git clone https://github.com/big-brother-cctv/api.git
-cd api
+# Ejecutar tests
+go test -v ./...
 ```
-
-Install dependencies and build the project:
-
-```sh
-./mvnw clean install
-```
-
-### Running the API
-
-Start the API locally:
-
-```sh
-./mvnw spring-boot:run
-```
-
-By default, the API runs at [http://localhost:8080](http://localhost:8080).
-
-### Docker
-
-To build and run the API with Docker:
-
-```sh
-docker build -t bigbrother-api .
-docker run -p 8080:8080 bigbrother-api
-```
-
-## Endpoints
-
-- `POST /api/auth/login` - User login (returns JWT)
-- `POST /api/auth/register` - User registration
-- `GET /api/cameras` - List all cameras
-- `POST /api/cameras` - Create a new camera
-- `PUT /api/cameras/{id}` - Update a camera
-- `DELETE /api/cameras/{id}` - Delete a camera
-
-## Camera Model
-
-Example of camera fields:
-
-```json
-{
-  "id": 1,
-  "name": "Front Door",
-  "device": "/dev/video0",
-  "resolution": "1920x1080",
-  "fps": "30",
-  "postUrl": "http://localhost:8000/upload",
-  "codec": "h264",
-  "preset": "ultrafast",
-  "tune": "zerolatency",
-  "buffer": "1000",
-  "rotation": "0"
-}
-```
-
-## Error Handling
-
-Custom error responses are provided, for example:
-
-```json
-{
-  "timestamp": "2024-06-07T12:34:56.789",
-  "message": "Camera name is required",
-  "details": "Invalid camera name"
-}
-```
-
-## License
-
-This project is licensed under the [GNU GPL v3](https://github.com/big-brother-cctv/api/blob/main/LICENSE).
