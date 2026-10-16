@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/big-brother-cctv/api/compare/v0.6.0...v0.7.0) (2026-10-16)
+
+
+### Features
+
+* add security headers, rate limiting, role-based access control, and enhanced validation ([222b47c](https://github.com/big-brother-cctv/api/commit/222b47c7e9610e042953e85b7643f1ad1b760b6f))
+
 ## [0.6.0](https://github.com/big-brother-cctv/api/compare/v0.5.1...v0.6.0) (2026-10-16)
 
 
