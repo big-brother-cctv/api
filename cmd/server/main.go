@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bigbrother/api/internal/alerts"
 	"github.com/bigbrother/api/internal/auth"
 	"github.com/bigbrother/api/internal/config"
 	"github.com/bigbrother/api/internal/database"
@@ -28,6 +29,9 @@ func main() {
 	mtxService := mediamtx.NewService(cfg)
 	mtxService.StartSyncLoop(db)
 
+	alertsHub := alerts.NewHub()
+	alertHandler := handlers.NewAlertHandler(db, alertsHub, cfg)
+
 	authHandler := handlers.NewAuthHandler(db, jwtService)
 	cameraHandler := handlers.NewCameraHandler(db, mtxService, cfg)
 	userHandler := handlers.NewUserHandler(db)
@@ -46,6 +50,9 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
+	// Servir estáticos de capturas de movimiento localmente sin requerir servicios externos
+	r.Static("/api/alerts/snapshots", "./data/alerts")
+
 	api := r.Group("/api")
 	{
 		// Rutas públicas de autenticación con rate limiting activo
@@ -58,6 +65,12 @@ func main() {
 
 		// Heartbeat público/semiprotegido para agentes remotos (admite token opcional)
 		api.POST("/cameras/heartbeat", cameraHandler.Heartbeat)
+
+		// Ingesta de alertas de movimiento (admite internal token o JWT)
+		api.POST("/alerts", alertHandler.Create)
+
+		// Flujo SSE en tiempo real para Telescreen (Server-Sent Events)
+		api.GET("/alerts/stream", alertHandler.Stream)
 
 		// Rutas protegidas (JWT o Internal Token)
 		protected := api.Group("")
@@ -78,6 +91,14 @@ func main() {
 			protected.GET("/users/:id", userHandler.GetByID)
 			protected.PUT("/users/:id", userHandler.Update)
 			protected.DELETE("/users/:id", middleware.RequireRole("admin"), userHandler.Delete)
+
+			// Alerts: Consulta, acuses de recibo y gestión de alertas de movimiento
+			protected.GET("/alerts", alertHandler.GetAll)
+			protected.GET("/alerts/unread-count", alertHandler.GetUnreadCount)
+			protected.POST("/alerts/:id/ack", alertHandler.Acknowledge)
+			protected.POST("/alerts/ack-all", alertHandler.AcknowledgeAll)
+			protected.DELETE("/alerts/:id", middleware.RequireRole("admin", "operator"), alertHandler.Delete)
+			protected.DELETE("/alerts", middleware.RequireRole("admin"), alertHandler.ClearAll)
 
 			// Uploads: Solo operadores y administradores pueden subir snapshots y grabaciones
 			uploadGroup := protected.Group("/upload")

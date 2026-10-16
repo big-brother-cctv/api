@@ -91,3 +91,19 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 	Error   string `json:"error"`
 }
+
+type MotionAlert struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	CameraID     *uint     `json:"cameraId"`
+	CameraName   string    `gorm:"index;not null" json:"cameraName"`
+	SnapshotPath string    `json:"snapshotPath"` // URL accesible para Telescreen: /api/alerts/snapshots/...
+	DetectedAt   time.Time `gorm:"index;not null" json:"detectedAt"`
+	Label        string    `gorm:"default:'motion'" json:"label"`
+	Confidence   float64   `gorm:"default:1.0" json:"confidence"`
+	Acknowledged bool      `gorm:"default:false;index" json:"acknowledged"`
+	Severity     string    `gorm:"default:'warning'" json:"severity"` // 'info', 'warning', 'critical'
+}
+
+func (MotionAlert) TableName() string {
+	return "alerts"
+}
