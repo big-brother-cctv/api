@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/big-brother-cctv/api/compare/v0.7.0...v0.8.0) (2026-10-16)
+
+
+### Features
+
+* add alert management system with real-time SSE streaming and snapshot storage ([f2c15f3](https://github.com/big-brother-cctv/api/commit/f2c15f363bd71ee605af6dd258ec739e00fc004d))
+
 ## [0.7.0](https://github.com/big-brother-cctv/api/compare/v0.6.0...v0.7.0) (2026-10-16)
 
 
