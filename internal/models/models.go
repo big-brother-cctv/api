@@ -43,7 +43,9 @@ type User struct {
 	Email          string `gorm:"uniqueIndex;not null" json:"email"`
 	HashedPassword string `gorm:"not null" json:"-"`
 	Name           string `json:"name"`
-	Disabled       bool   `gorm:"default:true" json:"disabled"`
+	Role           string `gorm:"default:'operator';not null" json:"role"` // "admin", "operator", "viewer"
+	Permissions    string `gorm:"default:''" json:"permissions"`
+	Disabled       bool   `gorm:"default:false" json:"disabled"`
 	Photo          string `gorm:"default:''" json:"photo"`
 }
 
@@ -53,20 +55,35 @@ func (User) TableName() string {
 
 // UserDTO representa la vista pública de un usuario (sin password)
 type UserDTO struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Photo    string `json:"photo"`
+	ID          uint   `json:"id"`
+	Username    string `json:"username"`
+	Email       string `json:"email"`
+	Name        string `json:"name"`
+	Role        string `json:"role"`
+	Permissions string `json:"permissions"`
+	Disabled    bool   `json:"disabled"`
+	Photo       string `json:"photo"`
 }
 
 func (u *User) ToDTO() UserDTO {
+	role := u.Role
+	if role == "" {
+		if u.Username == "admin" {
+			role = "admin"
+		} else {
+			role = "operator"
+		}
+	}
+
 	return UserDTO{
-		ID:       u.ID,
-		Username: u.Username,
-		Email:    u.Email,
-		Name:     u.Name,
-		Photo:    u.Photo,
+		ID:          u.ID,
+		Username:    u.Username,
+		Email:       u.Email,
+		Name:        u.Name,
+		Role:        role,
+		Permissions: u.Permissions,
+		Disabled:    u.Disabled,
+		Photo:       u.Photo,
 	}
 }
 

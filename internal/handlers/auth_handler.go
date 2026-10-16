@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/bigbrother/api/internal/auth"
 	"github.com/bigbrother/api/internal/models"
@@ -46,7 +47,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.jwtService.GenerateToken(user.Username)
+	role := user.Role
+	if role == "" {
+		if user.Username == "admin" {
+			role = "admin"
+		} else {
+			role = "operator"
+		}
+	}
+
+	token, err := h.jwtService.GenerateToken(user.Username, role)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to generate token")
 		return
@@ -61,6 +71,8 @@ type RegisterRequest struct {
 	Password       string `json:"password"`
 	HashedPassword string `json:"hashedPassword"`
 	Name           string `json:"name"`
+	Role           string `json:"role"`
+	Permissions    string `json:"permissions"`
 	Photo          string `json:"photo"`
 }
 
@@ -101,11 +113,18 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	role := strings.TrimSpace(req.Role)
+	if role == "" {
+		role = "operator"
+	}
+
 	newUser := models.User{
 		Username:       req.Username,
 		Email:          req.Email,
 		HashedPassword: string(hashedBytes),
 		Name:           req.Name,
+		Role:           role,
+		Permissions:    req.Permissions,
 		Photo:          req.Photo,
 		Disabled:       false,
 	}

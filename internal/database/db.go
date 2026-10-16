@@ -45,6 +45,8 @@ func seedInitialUser(db *gorm.DB) {
 			Name:           "Raul Del Valle",
 			Email:          "admin@bandanize.com",
 			HashedPassword: string(hashedPassword),
+			Role:           "admin",
+			Permissions:    "admin:all",
 			Disabled:       false,
 			Photo:          "",
 		}
@@ -54,5 +56,12 @@ func seedInitialUser(db *gorm.DB) {
 		} else {
 			log.Printf("Initial user created: %s", adminUser.Username)
 		}
+	} else {
+		// Asegurar que el usuario admin existente tenga rol de admin y permisos
+		db.Model(&models.User{}).Where("username = ? AND (role = '' OR role IS NULL)", "admin").
+			Updates(map[string]interface{}{
+				"role":        "admin",
+				"permissions": "admin:all",
+			})
 	}
 }
