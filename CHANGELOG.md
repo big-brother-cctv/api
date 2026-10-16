@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/big-brother-cctv/api/compare/v0.5.1...v0.6.0) (2026-10-16)
+
+
+### Features
+
+* **users:** add role and permissions management with deletion safety protections ([0afb9b2](https://github.com/big-brother-cctv/api/commit/0afb9b2a88709dccfdf87b08583a021af939225d))
+
 ## [0.5.1](https://github.com/big-brother-cctv/api/compare/v0.5.0...v0.5.1) (2026-10-16)
 
 
