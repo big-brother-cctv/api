@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/big-brother-cctv/api/compare/v0.5.0...v0.5.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **build:** track cmd/server and correct gitignore rule ([4319fa1](https://github.com/big-brother-cctv/api/commit/4319fa1b674dbddd77168174c60d213632cb2d4f))
+
 ## [0.5.0](https://github.com/big-brother-cctv/api/compare/v0.4.0...v0.5.0) (2026-10-16)
 
 
