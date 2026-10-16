@@ -66,7 +66,7 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 		}
 
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-			"error": "Acceso denegado: rango de autorización insuficiente en Oceanía",
+			"error": "Acceso denegado: permisos insuficientes para realizar esta acción",
 		})
 	}
 }

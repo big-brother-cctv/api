@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/bigbrother/api/internal/auth"
@@ -9,6 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+)
+
+var (
+	validUsernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-\.]{3,32}$`)
+	validEmailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 )
 
 type AuthHandler struct {
@@ -32,24 +38,51 @@ type AuthResponse struct {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req AuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.String(http.StatusBadRequest, "Invalid request body")
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "Cuerpo de solicitud inválido",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	username := strings.TrimSpace(req.Username)
+	if username == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "El nombre de usuario y la contraseña son obligatorios",
+			Error:   "MissingCredentials",
+		})
 		return
 	}
 
 	var user models.User
-	if err := h.db.Where("username = ?", req.Username).First(&user).Error; err != nil {
-		c.String(http.StatusUnauthorized, "Invalid credentials")
+	if err := h.db.Where("LOWER(username) = LOWER(?)", username).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Credenciales de acceso inválidas",
+			Error:   "InvalidCredentials",
+		})
+		return
+	}
+
+	// Verificar si el usuario está deshabilitado
+	if user.Disabled {
+		c.JSON(http.StatusForbidden, models.ErrorResponse{
+			Message: "La cuenta de usuario se encuentra suspendida o deshabilitada",
+			Error:   "AccountDisabled",
+		})
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
-		c.String(http.StatusUnauthorized, "Invalid credentials")
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Credenciales de acceso inválidas",
+			Error:   "InvalidCredentials",
+		})
 		return
 	}
 
 	role := user.Role
 	if role == "" {
-		if user.Username == "admin" {
+		if strings.EqualFold(user.Username, "admin") {
 			role = "admin"
 		} else {
 			role = "operator"
@@ -58,7 +91,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	token, err := h.jwtService.GenerateToken(user.Username, role)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "Failed to generate token")
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Error al generar el token de sesión",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -79,37 +115,79 @@ type RegisterRequest struct {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.String(http.StatusBadRequest, "Invalid request body")
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "Cuerpo de solicitud inválido",
+			Error:   err.Error(),
+		})
 		return
 	}
 
-	pass := req.Password
+	pass := strings.TrimSpace(req.Password)
 	if pass == "" {
-		pass = req.HashedPassword
+		pass = strings.TrimSpace(req.HashedPassword)
 	}
 
-	if req.Username == "" || req.Email == "" || pass == "" {
-		c.String(http.StatusBadRequest, "Username, email and password are required")
+	username := strings.TrimSpace(req.Username)
+	email := strings.TrimSpace(req.Email)
+
+	if username == "" || email == "" || pass == "" {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "El nombre de usuario, correo electrónico y contraseña son obligatorios",
+			Error:   "MissingFields",
+		})
+		return
+	}
+
+	if !validUsernameRegex.MatchString(username) {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "El nombre de usuario debe tener entre 3 y 32 caracteres alfanuméricos (letras, números, '.', '_', '-')",
+			Error:   "InvalidUsernameFormat",
+		})
+		return
+	}
+
+	if !validEmailRegex.MatchString(email) {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "Formato de correo electrónico inválido",
+			Error:   "InvalidEmailFormat",
+		})
+		return
+	}
+
+	if len(pass) < 6 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "La contraseña debe contener al menos 6 caracteres",
+			Error:   "WeakPassword",
+		})
 		return
 	}
 
 	// Comprobar si ya existe username
 	var existingUser models.User
-	if err := h.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
-		c.String(http.StatusConflict, "Username already exists")
+	if err := h.db.Where("LOWER(username) = LOWER(?)", username).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, models.ErrorResponse{
+			Message: "El nombre de usuario ya está registrado",
+			Error:   "UsernameAlreadyExists",
+		})
 		return
 	}
 
 	// Comprobar si ya existe email
-	if err := h.db.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
-		c.String(http.StatusConflict, "Email already exists")
+	if err := h.db.Where("LOWER(email) = LOWER(?)", email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, models.ErrorResponse{
+			Message: "El correo electrónico ya está registrado",
+			Error:   "EmailAlreadyExists",
+		})
 		return
 	}
 
 	// Hashear contraseña con bcrypt
 	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "Failed to hash password")
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Error al procesar la contraseña",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -119,10 +197,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	newUser := models.User{
-		Username:       req.Username,
-		Email:          req.Email,
+		Username:       username,
+		Email:          email,
 		HashedPassword: string(hashedBytes),
-		Name:           req.Name,
+		Name:           strings.TrimSpace(req.Name),
 		Role:           role,
 		Permissions:    req.Permissions,
 		Photo:          req.Photo,
@@ -130,9 +208,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := h.db.Create(&newUser).Error; err != nil {
-		c.String(http.StatusInternalServerError, "Failed to create user")
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Error al registrar el usuario en el sistema",
+			Error:   err.Error(),
+		})
 		return
 	}
 
-	c.String(http.StatusCreated, "User registered successfully")
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Usuario registrado correctamente",
+		"user":    newUser.ToDTO(),
+	})
 }

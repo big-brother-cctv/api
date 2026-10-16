@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+var validCameraNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-\.]{2,48}$`)
 
 type CameraHandler struct {
 	db         *gorm.DB
@@ -81,8 +84,15 @@ func (h *CameraHandler) Create(c *gin.Context) {
 	trimmedName := strings.TrimSpace(camera.Name)
 	if trimmedName == "" {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Message: "Camera name is required",
-			Error:   "Invalid camera name",
+			Message: "El nombre de la cámara es obligatorio",
+			Error:   "CameraNameRequired",
+		})
+		return
+	}
+	if !validCameraNameRegex.MatchString(trimmedName) {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "El nombre de la cámara debe contener entre 2 y 48 caracteres alfanuméricos, guiones o puntos (sin espacios)",
+			Error:   "InvalidCameraNameFormat",
 		})
 		return
 	}
@@ -201,7 +211,25 @@ func (h *CameraHandler) Update(c *gin.Context) {
 
 	// Actualización selectiva de campos presentes en el payload
 	if v, ok := input["name"].(string); ok && strings.TrimSpace(v) != "" {
-		camera.Name = strings.TrimSpace(v)
+		newName := strings.TrimSpace(v)
+		if !validCameraNameRegex.MatchString(newName) {
+			c.JSON(http.StatusBadRequest, models.ErrorResponse{
+				Message: "El nombre de la cámara debe contener entre 2 y 48 caracteres alfanuméricos, guiones o puntos (sin espacios)",
+				Error:   "InvalidCameraNameFormat",
+			})
+			return
+		}
+		if !strings.EqualFold(newName, camera.Name) {
+			var collision models.Camera
+			if err := h.db.Where("LOWER(name) = LOWER(?) AND id != ?", newName, camera.ID).First(&collision).Error; err == nil {
+				c.JSON(http.StatusConflict, models.ErrorResponse{
+					Message: fmt.Sprintf("Ya existe otra cámara con el nombre '%s'", newName),
+					Error:   "DuplicateCameraName",
+				})
+				return
+			}
+		}
+		camera.Name = newName
 	}
 	if v, ok := input["sourceType"].(string); ok {
 		camera.SourceType = v
@@ -353,7 +381,7 @@ func (h *CameraHandler) Heartbeat(c *gin.Context) {
 			})
 			return
 		}
-		log.Printf("[INGSOC HEARTBEAT] Nueva cámara auto-registrada: '%s'", camera.Name)
+		log.Printf("[CCTV HEARTBEAT] Nueva cámara auto-registrada: '%s'", camera.Name)
 	} else {
 		// Ya existía: actualizamos lastSeen y status
 		updates := map[string]interface{}{
