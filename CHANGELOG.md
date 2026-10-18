@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/big-brother-cctv/api/compare/v0.8.0...v0.8.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* prevent demoting or disabling the primary admin user and ensure initial admin state on startup ([fde57c4](https://github.com/big-brother-cctv/api/commit/fde57c41c03a5dbbb5a02db2572ca7d8c6398df9))
+
 ## [0.8.0](https://github.com/big-brother-cctv/api/compare/v0.7.0...v0.8.0) (2026-10-16)
 
 
