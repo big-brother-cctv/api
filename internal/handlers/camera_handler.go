@@ -65,8 +65,18 @@ func (h *CameraHandler) GetAll(c *gin.Context) {
 	if cameras == nil {
 		cameras = []models.Camera{}
 	}
+
+	activePaths, _ := h.mtxService.GetActivePaths()
+
 	for i := range cameras {
 		h.enrichCamera(&cameras[i])
+		if activePaths != nil {
+			if isReady, exists := activePaths[cameras[i].Name]; exists && isReady {
+				cameras[i].Status = "online"
+			} else if isReady, exists := activePaths[strings.ToLower(cameras[i].Name)]; exists && isReady {
+				cameras[i].Status = "online"
+			}
+		}
 	}
 	c.JSON(http.StatusOK, cameras)
 }
