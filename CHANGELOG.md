@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/big-brother-cctv/api/compare/v0.10.0...v0.11.0) (2026-10-18)
+
+
+### Features
+
+* add unified motion detection configuration endpoint and camera model fields ([4c36d06](https://github.com/big-brother-cctv/api/commit/4c36d06c81d44aaa2181dad3c9e976fb0297cdd7))
+
 ## [0.10.0](https://github.com/big-brother-cctv/api/compare/v0.9.0...v0.10.0) (2026-10-18)
 
 
