@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/big-brother-cctv/api/compare/v0.9.0...v0.10.0) (2026-10-18)
+
+
+### Features
+
+* disable response buffering for SSE alerts and enrich camera status with active paths ([1f75d51](https://github.com/big-brother-cctv/api/commit/1f75d51ebd4fa44db117e9c5427ac9ce8410e65e))
+
 ## [0.9.0](https://github.com/big-brother-cctv/api/compare/v0.8.1...v0.9.0) (2026-10-18)
 
 
