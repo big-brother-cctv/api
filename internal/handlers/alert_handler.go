@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -80,22 +81,25 @@ func (h *AlertHandler) Create(c *gin.Context) {
 		}
 	}
 
-	// Smart Cooldown por cámara
+	// Smart Cooldown por cámara (con posibilidad de bypass con ignore_cooldown para tests)
 	now := time.Now()
-	h.mu.Lock()
-	lastAlert, exists := h.cooldowns[cameraName]
-	if exists && now.Sub(lastAlert) < h.cooldownSec {
+	ignoreCooldown := c.DefaultPostForm("ignore_cooldown", "false") == "true" || c.Query("ignore_cooldown") == "true"
+	if !ignoreCooldown {
+		h.mu.Lock()
+		lastAlert, exists := h.cooldowns[cameraName]
+		if exists && now.Sub(lastAlert) < h.cooldownSec {
+			h.mu.Unlock()
+			c.JSON(http.StatusOK, gin.H{
+				"status":  "skipped",
+				"message": fmt.Sprintf("Alerta omitida por cooldown activo para '%s'", cameraName),
+			})
+			return
+		}
+		h.cooldowns[cameraName] = now
 		h.mu.Unlock()
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "skipped",
-			"message": fmt.Sprintf("Alerta omitida por cooldown activo para '%s'", cameraName),
-		})
-		return
 	}
-	h.cooldowns[cameraName] = now
-	h.mu.Unlock()
 
-	// Procesar imagen si viene adjunta
+	// Procesar imagen si viene adjunta como multipart o base64
 	var snapshotPath string
 	file, header, err := c.Request.FormFile("image")
 	if err != nil {
@@ -117,6 +121,25 @@ func (h *AlertHandler) Create(c *gin.Context) {
 			defer out.Close()
 			_, _ = io.Copy(out, file)
 			snapshotPath = "/api/alerts/snapshots/" + filename
+		}
+	} else {
+		// Fallback: Soporte para imagen en Base64 (útil para pruebas o clientes que envían payloads JSON/form)
+		b64 := c.PostForm("image_base64")
+		if b64 == "" {
+			b64 = c.PostForm("snapshot_base64")
+		}
+		if b64 != "" {
+			if idx := strings.Index(b64, ","); idx != -1 {
+				b64 = b64[idx+1:]
+			}
+			data, err := base64.StdEncoding.DecodeString(b64)
+			if err == nil && len(data) > 0 {
+				filename := fmt.Sprintf("alert_%d_%s.jpg", now.UnixNano(), strings.ReplaceAll(cameraName, " ", "_"))
+				diskPath := filepath.Join(h.storageDir, filename)
+				if err := os.WriteFile(diskPath, data, 0644); err == nil {
+					snapshotPath = "/api/alerts/snapshots/" + filename
+				}
+			}
 		}
 	}
 

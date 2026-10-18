@@ -96,7 +96,9 @@ func main() {
 			protected.GET("/alerts", alertHandler.GetAll)
 			protected.GET("/alerts/unread-count", alertHandler.GetUnreadCount)
 			protected.POST("/alerts/:id/ack", alertHandler.Acknowledge)
+			protected.PUT("/alerts/:id/ack", alertHandler.Acknowledge)
 			protected.POST("/alerts/ack-all", alertHandler.AcknowledgeAll)
+			protected.PUT("/alerts/ack-all", alertHandler.AcknowledgeAll)
 			protected.DELETE("/alerts/:id", middleware.RequireRole("admin", "operator"), alertHandler.Delete)
 			protected.DELETE("/alerts", middleware.RequireRole("admin"), alertHandler.ClearAll)
 
