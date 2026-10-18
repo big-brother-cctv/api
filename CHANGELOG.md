@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/big-brother-cctv/api/compare/v0.8.1...v0.9.0) (2026-10-18)
+
+
+### Features
+
+* add base64 image support and cooldown bypass to alerts handler alongside PUT routes for acknowledgments ([b680002](https://github.com/big-brother-cctv/api/commit/b6800023edcde8d6ade925a997fd6c7d03e8cdc1))
+
 ## [0.8.1](https://github.com/big-brother-cctv/api/compare/v0.8.0...v0.8.1) (2026-10-18)
 
 
