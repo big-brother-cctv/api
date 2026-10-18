@@ -259,16 +259,31 @@ func (h *UserHandler) Update(c *gin.Context) {
 	// Campos restringidos únicamente a administradores
 	if isAdmin {
 		if v, ok := input["role"].(string); ok && strings.TrimSpace(v) != "" {
+			if strings.EqualFold(user.Username, "admin") && !strings.EqualFold(strings.TrimSpace(v), "admin") {
+				c.JSON(http.StatusBadRequest, models.ErrorResponse{
+					Message: "El usuario administrador principal no puede ser degradado de rol",
+					Error:   "AdminCannotBeDemoted",
+				})
+				return
+			}
 			user.Role = strings.TrimSpace(v)
 		}
 		if v, ok := input["permissions"].(string); ok {
 			user.Permissions = v
 		}
 		if v, ok := input["disabled"].(bool); ok {
+			// Prevenir deshabilitar al administrador principal
+			if v && strings.EqualFold(user.Username, "admin") {
+				c.JSON(http.StatusBadRequest, models.ErrorResponse{
+					Message: "La cuenta del administrador principal no puede ser deshabilitada",
+					Error:   "AdminCannotBeDisabled",
+				})
+				return
+			}
 			// Prevenir deshabilitar al último administrador
-			if v && (user.Role == "admin" || user.Username == "admin") {
+			if v && user.Role == "admin" {
 				var adminCount int64
-				h.db.Model(&models.User{}).Where("(role = ? OR username = ?) AND disabled = ?", "admin", "admin", false).Count(&adminCount)
+				h.db.Model(&models.User{}).Where("role = ? AND disabled = ?", "admin", false).Count(&adminCount)
 				if adminCount <= 1 {
 					c.JSON(http.StatusBadRequest, models.ErrorResponse{
 						Message: "No es posible deshabilitar al único administrador activo del sistema",

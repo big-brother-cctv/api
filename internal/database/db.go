@@ -57,11 +57,12 @@ func seedInitialUser(db *gorm.DB) {
 			log.Printf("Initial user created: %s", adminUser.Username)
 		}
 	} else {
-		// Asegurar que el usuario admin existente tenga rol de admin y permisos
-		db.Model(&models.User{}).Where("username = ? AND (role = '' OR role IS NULL)", "admin").
+		// Asegurar que el usuario admin inicial esté siempre habilitado con rol de administrador
+		db.Model(&models.User{}).Where("LOWER(username) = 'admin'").
 			Updates(map[string]interface{}{
 				"role":        "admin",
 				"permissions": "admin:all",
+				"disabled":    false,
 			})
 	}
 }
