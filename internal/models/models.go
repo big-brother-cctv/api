@@ -17,10 +17,14 @@ type Camera struct {
 	Tune           string     `json:"tune"`
 	Buffer         string     `json:"buffer"`
 	Rotation       string     `json:"rotation"`
-	Status         string     `gorm:"default:'offline'" json:"status"`           // 'online', 'offline', 'standby'
-	LastSeen       *time.Time `json:"lastSeen"`
-	StreamURL      string     `json:"streamUrl"`                                 // HLS stream URL
-	IngestURL      string     `json:"ingestUrl"`                                 // RTSP Ingest URL para modo PUSH
+	Status          string     `gorm:"default:'offline'" json:"status"`           // 'online', 'offline', 'standby'
+	LastSeen        *time.Time `json:"lastSeen"`
+	StreamURL       string     `json:"streamUrl"`                                 // HLS stream URL
+	IngestURL       string     `json:"ingestUrl"`                                 // RTSP Ingest URL para modo PUSH
+	MotionEnabled   bool       `gorm:"default:true" json:"motionEnabled"`
+	MotionThreshold int        `gorm:"default:350" json:"motionThreshold"`
+	MotionFrames    int        `gorm:"default:2" json:"motionFrames"`
+	MotionCooldown  int        `gorm:"default:15" json:"motionCooldown"`
 }
 
 type HeartbeatRequest struct {

@@ -72,6 +72,9 @@ func main() {
 		// Flujo SSE en tiempo real para Telescreen (Server-Sent Events)
 		api.GET("/alerts/stream", alertHandler.Stream)
 
+		// Configuración unificada de Motion para todas las cámaras
+		api.GET("/motion/config", cameraHandler.GetMotionConfig)
+
 		// Rutas protegidas (JWT o Internal Token)
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(jwtService, cfg))

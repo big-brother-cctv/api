@@ -51,6 +51,15 @@ func (h *CameraHandler) enrichCamera(cam *models.Camera) {
 	if cam.Status == "" {
 		cam.Status = "offline"
 	}
+	if cam.MotionThreshold == 0 {
+		cam.MotionThreshold = 350
+	}
+	if cam.MotionFrames == 0 {
+		cam.MotionFrames = 2
+	}
+	if cam.MotionCooldown == 0 {
+		cam.MotionCooldown = 15
+	}
 }
 
 func (h *CameraHandler) GetAll(c *gin.Context) {
@@ -277,6 +286,18 @@ func (h *CameraHandler) Update(c *gin.Context) {
 	if v, ok := input["rotation"].(string); ok {
 		camera.Rotation = v
 	}
+	if v, ok := input["motionEnabled"].(bool); ok {
+		camera.MotionEnabled = v
+	}
+	if v, ok := input["motionThreshold"].(float64); ok {
+		camera.MotionThreshold = int(v)
+	}
+	if v, ok := input["motionFrames"].(float64); ok {
+		camera.MotionFrames = int(v)
+	}
+	if v, ok := input["motionCooldown"].(float64); ok {
+		camera.MotionCooldown = int(v)
+	}
 
 	if err := h.db.Save(&camera).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -436,4 +457,56 @@ func (h *CameraHandler) Search(c *gin.Context) {
 		cameras = []models.Camera{}
 	}
 	c.JSON(http.StatusOK, cameras)
+}
+
+// GetMotionConfig genera la configuración unificada de todas las cámaras para el daemon Motion
+func (h *CameraHandler) GetMotionConfig(c *gin.Context) {
+	var cameras []models.Camera
+	if err := h.db.Find(&cameras).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Error fetching motion configuration",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	type MotionCameraItem struct {
+		ID        uint   `json:"id"`
+		Name      string `json:"name"`
+		RTSPURL   string `json:"rtspUrl"`
+		Threshold int    `json:"threshold"`
+		Frames    int    `json:"frames"`
+		Cooldown  int    `json:"cooldown"`
+		Enabled   bool   `json:"enabled"`
+	}
+
+	var items []MotionCameraItem
+	for _, cam := range cameras {
+		threshold := cam.MotionThreshold
+		if threshold == 0 {
+			threshold = 350
+		}
+		frames := cam.MotionFrames
+		if frames == 0 {
+			frames = 2
+		}
+		cooldown := cam.MotionCooldown
+		if cooldown == 0 {
+			cooldown = 15
+		}
+		items = append(items, MotionCameraItem{
+			ID:        cam.ID,
+			Name:      cam.Name,
+			RTSPURL:   fmt.Sprintf("rtsp://%s:8554/%s", h.cfg.MediaMTXRTSPHost, cam.Name),
+			Threshold: threshold,
+			Frames:    frames,
+			Cooldown:  cooldown,
+			Enabled:   cam.MotionEnabled,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"webcontrol_port": 8083,
+		"cameras":         items,
+	})
 }
