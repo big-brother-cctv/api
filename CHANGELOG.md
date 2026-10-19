@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/big-brother-cctv/api/compare/v0.13.0...v0.14.0) (2026-10-19)
+
+
+### Features
+
+* add resolution field to MotionCameraItem struct and response ([a2d6f22](https://github.com/big-brother-cctv/api/commit/a2d6f22436999b868ec92b3e008a26ca2d70925b))
+
 ## [0.13.0](https://github.com/big-brother-cctv/api/compare/v0.12.1...v0.13.0) (2026-10-19)
 
 
