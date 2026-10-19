@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/big-brother-cctv/api/compare/v0.12.0...v0.12.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* set camera status to standby when inactive in camera handler ([c84c3f9](https://github.com/big-brother-cctv/api/commit/c84c3f94649923c11a68da8c848a7496fe52aac7))
+
 ## [0.12.0](https://github.com/big-brother-cctv/api/compare/v0.11.0...v0.12.0) (2026-10-19)
 
 
