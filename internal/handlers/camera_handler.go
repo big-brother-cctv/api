@@ -60,6 +60,12 @@ func (h *CameraHandler) enrichCamera(cam *models.Camera) {
 	if cam.MotionCooldown == 0 {
 		cam.MotionCooldown = 15
 	}
+	if cam.AIMode == "" {
+		cam.AIMode = "all"
+	}
+	if cam.AIConfidence == 0 {
+		cam.AIConfidence = 0.28
+	}
 }
 
 func (h *CameraHandler) GetAll(c *gin.Context) {
@@ -307,6 +313,12 @@ func (h *CameraHandler) Update(c *gin.Context) {
 	if v, ok := input["motionCooldown"].(float64); ok {
 		camera.MotionCooldown = int(v)
 	}
+	if v, ok := input["aiMode"].(string); ok && strings.TrimSpace(v) != "" {
+		camera.AIMode = strings.TrimSpace(v)
+	}
+	if v, ok := input["aiConfidence"].(float64); ok && v > 0 {
+		camera.AIConfidence = v
+	}
 
 	if err := h.db.Save(&camera).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -480,14 +492,16 @@ func (h *CameraHandler) GetMotionConfig(c *gin.Context) {
 	}
 
 	type MotionCameraItem struct {
-		ID         uint   `json:"id"`
-		Name       string `json:"name"`
-		RTSPURL    string `json:"rtspUrl"`
-		Resolution string `json:"resolution"`
-		Threshold  int    `json:"threshold"`
-		Frames     int    `json:"frames"`
-		Cooldown   int    `json:"cooldown"`
-		Enabled    bool   `json:"enabled"`
+		ID           uint    `json:"id"`
+		Name         string  `json:"name"`
+		RTSPURL      string  `json:"rtspUrl"`
+		Resolution   string  `json:"resolution"`
+		Threshold    int     `json:"threshold"`
+		Frames       int     `json:"frames"`
+		Cooldown     int     `json:"cooldown"`
+		Enabled      bool    `json:"enabled"`
+		AIMode       string  `json:"aiMode"`
+		AIConfidence float64 `json:"aiConfidence"`
 	}
 
 	var items []MotionCameraItem
@@ -504,15 +518,25 @@ func (h *CameraHandler) GetMotionConfig(c *gin.Context) {
 		if cooldown == 0 {
 			cooldown = 15
 		}
+		aiMode := cam.AIMode
+		if aiMode == "" {
+			aiMode = "all"
+		}
+		aiConfidence := cam.AIConfidence
+		if aiConfidence == 0 {
+			aiConfidence = 0.28
+		}
 		items = append(items, MotionCameraItem{
-			ID:         cam.ID,
-			Name:       cam.Name,
-			RTSPURL:    fmt.Sprintf("rtsp://%s:8554/%s", h.cfg.MediaMTXRTSPHost, cam.Name),
-			Resolution: cam.Resolution,
-			Threshold:  threshold,
-			Frames:     frames,
-			Cooldown:   cooldown,
-			Enabled:    cam.MotionEnabled,
+			ID:           cam.ID,
+			Name:         cam.Name,
+			RTSPURL:      fmt.Sprintf("rtsp://%s:8554/%s", h.cfg.MediaMTXRTSPHost, cam.Name),
+			Resolution:   cam.Resolution,
+			Threshold:    threshold,
+			Frames:       frames,
+			Cooldown:     cooldown,
+			Enabled:      cam.MotionEnabled,
+			AIMode:       aiMode,
+			AIConfidence: aiConfidence,
 		})
 	}
 

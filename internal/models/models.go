@@ -25,6 +25,8 @@ type Camera struct {
 	MotionThreshold int        `gorm:"default:350" json:"motionThreshold"`
 	MotionFrames    int        `gorm:"default:2" json:"motionFrames"`
 	MotionCooldown  int        `gorm:"default:15" json:"motionCooldown"`
+	AIMode          string     `gorm:"default:'all'" json:"aiMode"`
+	AIConfidence    float64    `gorm:"default:0.28" json:"aiConfidence"`
 }
 
 type HeartbeatRequest struct {
