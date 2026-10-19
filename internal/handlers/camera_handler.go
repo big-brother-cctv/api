@@ -156,6 +156,13 @@ func (h *CameraHandler) Create(c *gin.Context) {
 		}
 	}
 
+	if camera.FPS == "" {
+		camera.FPS = "30"
+	}
+	if camera.Resolution == "" {
+		camera.Resolution = "1280x720"
+	}
+
 	if camera.Status == "" {
 		camera.Status = "standby"
 	}
@@ -391,7 +398,7 @@ func (h *CameraHandler) Heartbeat(c *gin.Context) {
 		}
 		fps := req.FPS
 		if fps == "" {
-			fps = "25"
+			fps = "30"
 		}
 
 		camera = models.Camera{
