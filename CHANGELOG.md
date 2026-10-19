@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/big-brother-cctv/api/compare/v0.11.0...v0.12.0) (2026-10-19)
+
+
+### Features
+
+* expand API README with comprehensive features, endpoints, and environment variables documentation ([cfda9c6](https://github.com/big-brother-cctv/api/commit/cfda9c6ba36488c3f5ae52105443fa9bee161a38))
+
 ## [0.11.0](https://github.com/big-brother-cctv/api/compare/v0.10.0...v0.11.0) (2026-10-18)
 
 
