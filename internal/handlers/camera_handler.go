@@ -84,6 +84,8 @@ func (h *CameraHandler) GetAll(c *gin.Context) {
 				cameras[i].Status = "online"
 			} else if isReady, exists := activePaths[strings.ToLower(cameras[i].Name)]; exists && isReady {
 				cameras[i].Status = "online"
+			} else {
+				cameras[i].Status = "standby"
 			}
 		}
 	}
