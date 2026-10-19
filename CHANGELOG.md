@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/big-brother-cctv/api/compare/v0.14.0...v0.15.0) (2026-10-19)
+
+
+### Features
+
+* add AI mode and confidence settings to camera configuration and handlers ([b7d2e5e](https://github.com/big-brother-cctv/api/commit/b7d2e5e2a37ee0c9f43292082d1ae89a8ef31552))
+
 ## [0.14.0](https://github.com/big-brother-cctv/api/compare/v0.13.0...v0.14.0) (2026-10-19)
 
 
