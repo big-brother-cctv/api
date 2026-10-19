@@ -480,13 +480,14 @@ func (h *CameraHandler) GetMotionConfig(c *gin.Context) {
 	}
 
 	type MotionCameraItem struct {
-		ID        uint   `json:"id"`
-		Name      string `json:"name"`
-		RTSPURL   string `json:"rtspUrl"`
-		Threshold int    `json:"threshold"`
-		Frames    int    `json:"frames"`
-		Cooldown  int    `json:"cooldown"`
-		Enabled   bool   `json:"enabled"`
+		ID         uint   `json:"id"`
+		Name       string `json:"name"`
+		RTSPURL    string `json:"rtspUrl"`
+		Resolution string `json:"resolution"`
+		Threshold  int    `json:"threshold"`
+		Frames     int    `json:"frames"`
+		Cooldown   int    `json:"cooldown"`
+		Enabled    bool   `json:"enabled"`
 	}
 
 	var items []MotionCameraItem
@@ -504,13 +505,14 @@ func (h *CameraHandler) GetMotionConfig(c *gin.Context) {
 			cooldown = 15
 		}
 		items = append(items, MotionCameraItem{
-			ID:        cam.ID,
-			Name:      cam.Name,
-			RTSPURL:   fmt.Sprintf("rtsp://%s:8554/%s", h.cfg.MediaMTXRTSPHost, cam.Name),
-			Threshold: threshold,
-			Frames:    frames,
-			Cooldown:  cooldown,
-			Enabled:   cam.MotionEnabled,
+			ID:         cam.ID,
+			Name:       cam.Name,
+			RTSPURL:    fmt.Sprintf("rtsp://%s:8554/%s", h.cfg.MediaMTXRTSPHost, cam.Name),
+			Resolution: cam.Resolution,
+			Threshold:  threshold,
+			Frames:     frames,
+			Cooldown:   cooldown,
+			Enabled:    cam.MotionEnabled,
 		})
 	}
 
