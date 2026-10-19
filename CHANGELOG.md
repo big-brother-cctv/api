@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/big-brother-cctv/api/compare/v0.12.1...v0.13.0) (2026-10-19)
+
+
+### Features
+
+* set default camera FPS and resolution values and update default FPS to 30 ([ca0092b](https://github.com/big-brother-cctv/api/commit/ca0092bf2d1879abc57c935e0ff549fea6704eca))
+
 ## [0.12.1](https://github.com/big-brother-cctv/api/compare/v0.12.0...v0.12.1) (2026-10-19)
 
 
