@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/big-brother-cctv/api/compare/v0.15.0...v0.16.0) (2026-10-20)
+
+
+### Features
+
+* add configurable data and alert storage directories to config and handlers ([3d78ef9](https://github.com/big-brother-cctv/api/commit/3d78ef9a8e5b46926cccbf4ce27d628b299f8d99))
+
 ## [0.15.0](https://github.com/big-brother-cctv/api/compare/v0.14.0...v0.15.0) (2026-10-19)
 
 
