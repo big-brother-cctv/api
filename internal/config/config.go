@@ -18,6 +18,8 @@ type Config struct {
 	ContentManagerURL string
 	MediaMTXAPIURL    string
 	MediaMTXRTSPHost  string
+	DataDir           string
+	AlertsDir         string
 }
 
 func getEnv(key, defaultVal string) string {
@@ -28,6 +30,9 @@ func getEnv(key, defaultVal string) string {
 }
 
 func LoadConfig() *Config {
+	dataDir := getEnv("DATA_DIR", "./data")
+	alertsDir := getEnv("ALERTS_DIR", dataDir+"/alerts")
+
 	return &Config{
 		Port:              getEnv("PORT", "8080"),
 		DBHost:            getEnv("DB_HOST", "localhost"),
@@ -41,6 +46,8 @@ func LoadConfig() *Config {
 		ContentManagerURL: getEnv("CONTENT_MANAGER_URL", "http://content-manager:8181"),
 		MediaMTXAPIURL:    getEnv("MEDIAMTX_API_URL", "http://localhost:9997"),
 		MediaMTXRTSPHost:  getEnv("MEDIAMTX_RTSP_HOST", "localhost"),
+		DataDir:           dataDir,
+		AlertsDir:         alertsDir,
 	}
 }
 

@@ -32,6 +32,9 @@ type AlertHandler struct {
 
 func NewAlertHandler(db *gorm.DB, hub *alerts.Hub, cfg *config.Config) *AlertHandler {
 	storageDir := "./data/alerts"
+	if cfg != nil && cfg.AlertsDir != "" {
+		storageDir = cfg.AlertsDir
+	}
 	if err := os.MkdirAll(storageDir, 0755); err != nil {
 		fmt.Printf("Aviso: no se pudo crear el directorio de alertas %s: %v\n", storageDir, err)
 	}
@@ -44,6 +47,11 @@ func NewAlertHandler(db *gorm.DB, hub *alerts.Hub, cfg *config.Config) *AlertHan
 		cooldowns:   make(map[string]time.Time),
 		cooldownSec: 15 * time.Second, // 15 segundos entre eventos de la misma cámara para evitar inundación
 	}
+}
+
+// StorageDir devuelve la ruta donde se guardan y sirven los snapshots de alertas
+func (h *AlertHandler) StorageDir() string {
+	return h.storageDir
 }
 
 // Create ingesta alertas desde detectores locales (motion daemon, scripts o webcams)
@@ -182,15 +190,26 @@ func (h *AlertHandler) GetAll(c *gin.Context) {
 		page = 1
 	}
 
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	if limit < 1 || limit > 100 {
-		limit = 20
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit < 1 {
+		limit = 50
+	} else if limit > 500 {
+		limit = 500
 	}
 	offset := (page - 1) * limit
+	if customOffset := c.Query("offset"); customOffset != "" {
+		if o, err := strconv.Atoi(customOffset); err == nil && o >= 0 {
+			offset = o
+		}
+	}
 
 	query := h.db.Model(&models.MotionAlert{})
 
-	if cam := c.Query("camera"); cam != "" {
+	cam := c.Query("camera")
+	if cam == "" {
+		cam = c.Query("camera_name")
+	}
+	if cam != "" {
 		query = query.Where("camera_name = ?", cam)
 	}
 

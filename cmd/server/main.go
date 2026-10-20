@@ -51,7 +51,7 @@ func main() {
 	})
 
 	// Servir estáticos de capturas de movimiento localmente sin requerir servicios externos
-	r.Static("/api/alerts/snapshots", "./data/alerts")
+	r.Static("/api/alerts/snapshots", alertHandler.StorageDir())
 
 	api := r.Group("/api")
 	{
