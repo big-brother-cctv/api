@@ -15,15 +15,17 @@ import (
 )
 
 type Service struct {
-	apiURL   string
-	rtspHost string
-	client   *http.Client
+	apiURL        string
+	rtspHost      string
+	internalToken string
+	client        *http.Client
 }
 
 func NewService(cfg *config.Config) *Service {
 	return &Service{
-		apiURL:   strings.TrimRight(cfg.MediaMTXAPIURL, "/"),
-		rtspHost: cfg.MediaMTXRTSPHost,
+		apiURL:        strings.TrimRight(cfg.MediaMTXAPIURL, "/"),
+		rtspHost:      cfg.MediaMTXRTSPHost,
+		internalToken: cfg.InternalToken,
 		client: &http.Client{
 			Timeout: 4 * time.Second,
 		},
@@ -42,10 +44,23 @@ type PathsListResponse struct {
 	Items     []PathItem `json:"items"`
 }
 
+// do envía la petición a la API de control de MediaMTX autenticada con el INTERNAL_TOKEN
+// (con authMethod: http, MediaMTX valida la acción "api" contra /internal/mediamtx/auth).
+func (s *Service) do(req *http.Request) (*http.Response, error) {
+	if s.internalToken != "" {
+		req.SetBasicAuth("api", s.internalToken)
+	}
+	return s.client.Do(req)
+}
+
 // GetActivePaths consulta la API de MediaMTX para saber qué streams están activos
 func (s *Service) GetActivePaths() (map[string]bool, error) {
 	url := fmt.Sprintf("%s/v3/paths/list", s.apiURL)
-	resp, err := s.client.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +103,7 @@ func (s *Service) ConfigurePullPath(cameraName, sourceURL string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := s.client.Do(req)
+	resp, err := s.do(req)
 	if err != nil {
 		return err
 	}
@@ -102,7 +117,7 @@ func (s *Service) ConfigurePullPath(cameraName, sourceURL string) error {
 			return err
 		}
 		patchReq.Header.Set("Content-Type", "application/json")
-		patchResp, err := s.client.Do(patchReq)
+		patchResp, err := s.do(patchReq)
 		if err != nil {
 			return err
 		}
@@ -119,7 +134,7 @@ func (s *Service) RemovePath(cameraName string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := s.client.Do(req)
+	resp, err := s.do(req)
 	if err != nil {
 		return err
 	}

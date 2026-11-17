@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +64,16 @@ func (h *CameraHandler) enrichCamera(cam *models.Camera) {
 	if cam.AIConfidence == 0 {
 		cam.AIConfidence = 0.28
 	}
+}
+
+// readerRTSPURL devuelve la URL RTSP interna con la credencial de lectura de MediaMTX
+// (para motion-detector). Este endpoint solo es accesible con el INTERNAL_TOKEN.
+func (h *CameraHandler) readerRTSPURL(name string) string {
+	u := url.URL{Scheme: "rtsp", Host: h.cfg.MediaMTXRTSPHost + ":8554", Path: "/" + name}
+	if h.cfg.MediaReadToken != "" {
+		u.User = url.UserPassword(MediaReadUser, h.cfg.MediaReadToken)
+	}
+	return u.String()
 }
 
 func (h *CameraHandler) GetAll(c *gin.Context) {
@@ -533,7 +544,7 @@ func (h *CameraHandler) GetMotionConfig(c *gin.Context) {
 		items = append(items, MotionCameraItem{
 			ID:           cam.ID,
 			Name:         cam.Name,
-			RTSPURL:      fmt.Sprintf("rtsp://%s:8554/%s", h.cfg.MediaMTXRTSPHost, cam.Name),
+			RTSPURL:      h.readerRTSPURL(cam.Name),
 			Resolution:   cam.Resolution,
 			Threshold:    threshold,
 			Frames:       frames,
