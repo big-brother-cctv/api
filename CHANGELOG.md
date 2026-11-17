@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.0](https://github.com/big-brother-cctv/api/compare/v0.16.0...v1.0.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* JWT_SECRET and INTERNAL_TOKEN are now mandatory in production, /api/auth/register is disabled by default, and SSE/snapshots require authentication.
+
+### Features
+
+* harden authentication and protect media endpoints ([3f62ebb](https://github.com/big-brother-cctv/api/commit/3f62ebb81931fdf93fe9f79905297cf329936067))
+
+
+### Bug Fixes
+
+* update release-please action owner to googleapis in release workflow ([3b04267](https://github.com/big-brother-cctv/api/commit/3b0426725394331711491c6b8277a6e5d0b55382))
+
 ## [0.16.0](https://github.com/big-brother-cctv/api/compare/v0.15.0...v0.16.0) (2026-10-20)
 
 
