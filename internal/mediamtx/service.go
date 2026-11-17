@@ -176,6 +176,10 @@ func (s *Service) StartSyncLoop(db *gorm.DB) {
 			for pathName, isReady := range activePaths {
 				lowerName := strings.ToLower(pathName)
 				if _, exists := existingMap[lowerName]; !exists && isReady {
+					if !models.IsValidCameraName(pathName) {
+						log.Printf("[AUTO-DISCOVERY] Stream %q ignorado: nombre de path no válido como cámara", pathName)
+						continue
+					}
 					log.Printf("[INGSOC AUTO-DISCOVERY] Nuevo stream detectado en MediaMTX: '%s'. Auto-registrando en Telescreen...", pathName)
 					newCam := models.Camera{
 						Name:           pathName,

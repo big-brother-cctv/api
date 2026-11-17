@@ -15,6 +15,7 @@ import (
 
 	"github.com/bigbrother/api/internal/alerts"
 	"github.com/bigbrother/api/internal/config"
+	"github.com/bigbrother/api/internal/middleware"
 	"github.com/bigbrother/api/internal/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -49,6 +50,17 @@ func NewAlertHandler(db *gorm.DB, hub *alerts.Hub, cfg *config.Config) *AlertHan
 	}
 }
 
+var allowedSnapshotExts = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true}
+
+// safeFileComponent evita path traversal: el nombre de cámara llega del formulario
+// y nunca debe usarse tal cual para construir rutas en disco.
+func safeFileComponent(name string) string {
+	if models.IsValidCameraName(name) {
+		return name
+	}
+	return "unknown"
+}
+
 // StorageDir devuelve la ruta donde se guardan y sirven los snapshots de alertas
 func (h *AlertHandler) StorageDir() string {
 	return h.storageDir
@@ -56,7 +68,7 @@ func (h *AlertHandler) StorageDir() string {
 
 // Create ingesta alertas desde detectores locales (motion daemon, scripts o webcams)
 func (h *AlertHandler) Create(c *gin.Context) {
-	// Comprobar autenticación: JWT válido O Internal Token en header/query/form
+	// Solo servicios internos (motion-detector) pueden registrar alertas: Internal Token en header/query/form
 	internalToken := c.GetHeader("X-Internal-Token")
 	if internalToken == "" {
 		internalToken = c.Query("token")
@@ -65,8 +77,7 @@ func (h *AlertHandler) Create(c *gin.Context) {
 		internalToken = c.PostForm("token")
 	}
 
-	_, hasAuthUser := c.Get("userID")
-	if !hasAuthUser && internalToken != h.cfg.InternalToken {
+	if !middleware.IsInternalToken(h.cfg, internalToken) {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Message: "No autorizado para registrar alertas de seguridad",
 			Error:   "UnauthorizedAlertSource",
@@ -117,11 +128,11 @@ func (h *AlertHandler) Create(c *gin.Context) {
 	if err == nil && file != nil {
 		defer file.Close()
 		ext := strings.ToLower(filepath.Ext(header.Filename))
-		if ext == "" || ext == "." {
+		if !allowedSnapshotExts[ext] {
 			ext = ".jpg"
 		}
 
-		filename := fmt.Sprintf("alert_%d_%s%s", now.UnixNano(), strings.ReplaceAll(cameraName, " ", "_"), ext)
+		filename := fmt.Sprintf("alert_%d_%s%s", now.UnixNano(), safeFileComponent(cameraName), ext)
 		diskPath := filepath.Join(h.storageDir, filename)
 
 		out, err := os.Create(diskPath)
@@ -142,7 +153,7 @@ func (h *AlertHandler) Create(c *gin.Context) {
 			}
 			data, err := base64.StdEncoding.DecodeString(b64)
 			if err == nil && len(data) > 0 {
-				filename := fmt.Sprintf("alert_%d_%s.jpg", now.UnixNano(), strings.ReplaceAll(cameraName, " ", "_"))
+				filename := fmt.Sprintf("alert_%d_%s.jpg", now.UnixNano(), safeFileComponent(cameraName))
 				diskPath := filepath.Join(h.storageDir, filename)
 				if err := os.WriteFile(diskPath, data, 0644); err == nil {
 					snapshotPath = "/api/alerts/snapshots/" + filename

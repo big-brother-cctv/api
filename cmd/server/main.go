@@ -13,10 +13,14 @@ import (
 	"github.com/bigbrother/api/internal/mediamtx"
 	"github.com/bigbrother/api/internal/middleware"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func main() {
 	cfg := config.LoadConfig()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("[SECURITY] %v", err)
+	}
 
 	// Inicializar base de datos
 	db, err := database.InitDB(cfg)
@@ -24,14 +28,22 @@ func main() {
 		log.Fatalf("Error al conectar con la base de datos: %v", err)
 	}
 
-	// Inicializar servicios y handlers
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
 	mtxService := mediamtx.NewService(cfg)
 	mtxService.StartSyncLoop(db)
 
-	alertsHub := alerts.NewHub()
-	alertHandler := handlers.NewAlertHandler(db, alertsHub, cfg)
+	r := newRouter(cfg, db, jwtService, mtxService, alerts.NewHub())
 
+	addr := ":" + cfg.Port
+	log.Printf("Big Brother Go Backend arrancando en %s", addr)
+	if err := r.Run(addr); err != nil {
+		log.Fatalf("Fallo al iniciar el servidor: %v", err)
+	}
+}
+
+// newRouter construye el router HTTP. Separado de main() para poder testear el enrutado.
+func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtxService *mediamtx.Service, alertsHub *alerts.Hub) *gin.Engine {
+	alertHandler := handlers.NewAlertHandler(db, alertsHub, cfg)
 	authHandler := handlers.NewAuthHandler(db, jwtService)
 	cameraHandler := handlers.NewCameraHandler(db, mtxService, cfg)
 	userHandler := handlers.NewUserHandler(db)
@@ -50,8 +62,13 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	// Servir estáticos de capturas de movimiento localmente sin requerir servicios externos
-	r.Static("/api/alerts/snapshots", alertHandler.StorageDir())
+	// Credenciales de medios: Bearer o cookie HttpOnly bb_media (EventSource, <img>, <video>)
+	mediaAuth := middleware.MediaAuthMiddleware(jwtService, cfg)
+
+	// Capturas de movimiento: solo usuarios autenticados
+	snapshots := r.Group("/api/alerts/snapshots")
+	snapshots.Use(mediaAuth)
+	snapshots.Static("/", alertHandler.StorageDir())
 
 	api := r.Group("/api")
 	{
@@ -60,25 +77,41 @@ func main() {
 		authGroup.Use(authRateLimiter.LimitMiddleware())
 		{
 			authGroup.POST("/login", authHandler.Login)
-			authGroup.POST("/register", authHandler.Register)
+			// Auto-registro desactivado por defecto; si se activa, siempre crea usuarios "viewer"
+			if cfg.AllowRegistration {
+				authGroup.POST("/register", authHandler.Register)
+			}
 		}
 
-		// Heartbeat público/semiprotegido para agentes remotos (admite token opcional)
-		api.POST("/cameras/heartbeat", cameraHandler.Heartbeat)
-
-		// Ingesta de alertas de movimiento (admite internal token o JWT)
+		// Ingesta de alertas de movimiento (solo Internal Token de servicios)
 		api.POST("/alerts", alertHandler.Create)
 
-		// Flujo SSE en tiempo real para Telescreen (Server-Sent Events)
-		api.GET("/alerts/stream", alertHandler.Stream)
+		// Cierre de sesión de medios: público para poder limpiar la cookie aunque el JWT haya caducado
+		api.DELETE("/media/session", authHandler.EndMediaSession)
 
-		// Configuración unificada de Motion para todas las cámaras
-		api.GET("/motion/config", cameraHandler.GetMotionConfig)
+		// Recursos de medios que el navegador pide sin cabeceras (cookie bb_media)
+		media := api.Group("")
+		media.Use(mediaAuth)
+		{
+			// Flujo SSE en tiempo real para Telescreen (Server-Sent Events)
+			media.GET("/alerts/stream", alertHandler.Stream)
+			// Verificación para nginx auth_request (/stream/ HLS y /whep/ WebRTC)
+			media.GET("/media/check", authHandler.MediaCheck)
+		}
 
 		// Rutas protegidas (JWT o Internal Token)
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(jwtService, cfg))
 		{
+			// Sesión de medios (cookie HttpOnly) a partir del Bearer actual
+			protected.POST("/media/session", authHandler.StartMediaSession)
+
+			// Agentes de cámara: heartbeat y auto-registro (Internal Token u operador)
+			protected.POST("/cameras/heartbeat", middleware.RequireRole("admin", "operator"), cameraHandler.Heartbeat)
+
+			// Configuración unificada de Motion (motion-detector con Internal Token)
+			protected.GET("/motion/config", middleware.RequireRole("admin"), cameraHandler.GetMotionConfig)
+
 			// Cameras: Lectura para todos los roles válidos, Modificación para operator/admin, Eliminación para admin
 			protected.GET("/cameras", cameraHandler.GetAll)
 			protected.GET("/cameras/search", cameraHandler.Search)
@@ -115,9 +148,5 @@ func main() {
 		}
 	}
 
-	addr := ":" + cfg.Port
-	log.Printf("Big Brother Go Backend arrancando en %s", addr)
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("Fallo al iniciar el servidor: %v", err)
-	}
+	return r
 }

@@ -1,6 +1,8 @@
 package database
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"log"
 
 	"github.com/bigbrother/api/internal/config"
@@ -25,44 +27,65 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	// Inicializador de datos (equivalente a DataInitializer.java)
-	seedInitialUser(db)
+	seedInitialUser(db, cfg)
 
 	return db, nil
 }
 
-func seedInitialUser(db *gorm.DB) {
+func seedInitialUser(db *gorm.DB, cfg *config.Config) {
 	var count int64
 	db.Model(&models.User{}).Count(&count)
-	if count == 0 {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
+	if count > 0 {
+		return
+	}
+
+	password := cfg.AdminInitialPassword
+	generated := false
+	if password == "" {
+		var err error
+		password, err = randomPassword(18)
 		if err != nil {
-			log.Printf("Error al hashear password inicial: %v", err)
+			log.Printf("Error al generar password inicial: %v", err)
 			return
 		}
-
-		adminUser := models.User{
-			Username:       "admin",
-			Name:           "Raul Del Valle",
-			Email:          "admin@bandanize.com",
-			HashedPassword: string(hashedPassword),
-			Role:           "admin",
-			Permissions:    "admin:all",
-			Disabled:       false,
-			Photo:          "",
-		}
-
-		if err := db.Create(&adminUser).Error; err != nil {
-			log.Printf("Error al crear usuario administrador inicial: %v", err)
-		} else {
-			log.Printf("Initial user created: %s", adminUser.Username)
-		}
-	} else {
-		// Asegurar que el usuario admin inicial esté siempre habilitado con rol de administrador
-		db.Model(&models.User{}).Where("LOWER(username) = 'admin'").
-			Updates(map[string]interface{}{
-				"role":        "admin",
-				"permissions": "admin:all",
-				"disabled":    false,
-			})
+		generated = true
 	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Error al hashear password inicial: %v", err)
+		return
+	}
+
+	adminUser := models.User{
+		Username:       "admin",
+		Name:           "Administrator",
+		Email:          "admin@bigbrother.local",
+		HashedPassword: string(hashedPassword),
+		Role:           "admin",
+		Permissions:    "admin:all",
+	}
+
+	if err := db.Create(&adminUser).Error; err != nil {
+		log.Printf("Error al crear usuario administrador inicial: %v", err)
+		return
+	}
+
+	if generated {
+		log.Printf("==========================================================")
+		log.Printf(" Usuario inicial creado: admin")
+		log.Printf(" Password generada (se muestra UNA sola vez): %s", password)
+		log.Printf(" Cámbiala tras el primer login o define ADMIN_INITIAL_PASSWORD.")
+		log.Printf("==========================================================")
+	} else {
+		log.Printf("Usuario inicial creado: admin (password de ADMIN_INITIAL_PASSWORD)")
+	}
+}
+
+func randomPassword(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
