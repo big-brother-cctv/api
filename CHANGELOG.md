@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/big-brother-cctv/api/compare/v1.0.0...v1.1.0) (2026-11-17)
+
+
+### Features
+
+* authenticate MediaMTX actions through the API ([4be1fae](https://github.com/big-brother-cctv/api/commit/4be1fae1946f61ae88ddd75363286d0d6241b51c))
+* authenticate MediaMTX actions through the API ([fa06e2e](https://github.com/big-brother-cctv/api/commit/fa06e2eeb3d6ca056d4b462e970aca7b2bc0461d))
+
 ## [1.0.0](https://github.com/big-brother-cctv/api/compare/v0.16.0...v1.0.0) (2026-11-17)
 
 
