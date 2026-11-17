@@ -18,6 +18,8 @@ type Config struct {
 	DBSSLMode            string
 	JWTSecret            string
 	InternalToken        string
+	MediaPublishToken    string
+	MediaReadToken       string
 	AllowRegistration    bool
 	AdminInitialPassword string
 	ContentManagerURL    string
@@ -63,6 +65,8 @@ func LoadConfig() *Config {
 		DBSSLMode:            getEnv("DB_SSLMODE", "disable"),
 		JWTSecret:            os.Getenv("JWT_SECRET"),
 		InternalToken:        os.Getenv("INTERNAL_TOKEN"),
+		MediaPublishToken:    os.Getenv("MEDIA_PUBLISH_TOKEN"),
+		MediaReadToken:       os.Getenv("MEDIA_READ_TOKEN"),
 		AllowRegistration:    strings.EqualFold(os.Getenv("ALLOW_REGISTRATION"), "true"),
 		AdminInitialPassword: os.Getenv("ADMIN_INITIAL_PASSWORD"),
 		ContentManagerURL:    getEnv("CONTENT_MANAGER_URL", "http://content-manager:8181"),
@@ -88,6 +92,14 @@ func (c *Config) Validate() error {
 	var problems []string
 	problems = append(problems, checkSecret("JWT_SECRET", c.JWTSecret, minJWTSecretLen)...)
 	problems = append(problems, checkSecret("INTERNAL_TOKEN", c.InternalToken, minInternalTokenLen)...)
+	// Credenciales de MediaMTX: opcionales (si faltan, solo el INTERNAL_TOKEN puede publicar/leer),
+	// pero si se definen deben ser robustas.
+	if c.MediaPublishToken != "" {
+		problems = append(problems, checkSecret("MEDIA_PUBLISH_TOKEN", c.MediaPublishToken, minInternalTokenLen)...)
+	}
+	if c.MediaReadToken != "" {
+		problems = append(problems, checkSecret("MEDIA_READ_TOKEN", c.MediaReadToken, minInternalTokenLen)...)
+	}
 
 	if len(problems) == 0 {
 		return nil

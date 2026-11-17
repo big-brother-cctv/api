@@ -48,6 +48,7 @@ func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtx
 	cameraHandler := handlers.NewCameraHandler(db, mtxService, cfg)
 	userHandler := handlers.NewUserHandler(db)
 	uploadHandler := handlers.NewUploadHandler(cfg)
+	mtxAuthHandler := handlers.NewMediaMTXAuthHandler(cfg)
 
 	// Rate limiter para endpoints sensibles de autenticación (máx 20 intentos por minuto por IP)
 	authRateLimiter := middleware.NewRateLimiter(20, time.Minute)
@@ -69,6 +70,10 @@ func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtx
 	snapshots := r.Group("/api/alerts/snapshots")
 	snapshots.Use(mediaAuth)
 	snapshots.Static("/", alertHandler.StorageDir())
+
+	// Endpoint authHTTPAddress de MediaMTX (authMethod: http). Fuera de /api para que el
+	// nginx público de Telescreen no lo exponga; solo lo llama MediaMTX dentro del clúster.
+	r.POST("/internal/mediamtx/auth", mtxAuthHandler.Auth)
 
 	api := r.Group("/api")
 	{
@@ -105,6 +110,8 @@ func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtx
 		{
 			// Sesión de medios (cookie HttpOnly) a partir del Bearer actual
 			protected.POST("/media/session", authHandler.StartMediaSession)
+			// Credenciales de publicación RTSP/RTMP para móviles y OBS
+			protected.GET("/media/publish-credentials", middleware.RequireRole("admin", "operator"), mtxAuthHandler.PublishCredentials)
 
 			// Agentes de cámara: heartbeat y auto-registro (Internal Token u operador)
 			protected.POST("/cameras/heartbeat", middleware.RequireRole("admin", "operator"), cameraHandler.Heartbeat)

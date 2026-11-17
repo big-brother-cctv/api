@@ -19,6 +19,8 @@ import (
 const (
 	testJWTSecret     = "a-very-long-random-jwt-secret-value-0123456789"
 	testInternalToken = "a-very-long-random-internal-token-123"
+	testPublishToken  = "a-very-long-random-publish-token-4567"
+	testReadToken     = "a-very-long-random-read-token-8901234"
 )
 
 // Estos tests no usan base de datos: todas las peticiones se resuelven
@@ -40,6 +42,8 @@ func setupTestRouter(t *testing.T, allowRegistration bool) (*gin.Engine, *auth.J
 		AppEnv:            "production",
 		JWTSecret:         testJWTSecret,
 		InternalToken:     testInternalToken,
+		MediaPublishToken: testPublishToken,
+		MediaReadToken:    testReadToken,
 		AllowRegistration: allowRegistration,
 		MediaMTXAPIURL:    "http://127.0.0.1:1",
 		DataDir:           dir,
@@ -155,5 +159,46 @@ func TestAlertIngestRequiresInternalToken(t *testing.T) {
 	}
 	if w := do(r, http.MethodPost, "/api/alerts?token=wrong", ""); w.Code != http.StatusUnauthorized {
 		t.Errorf("alert ingest with wrong token: expected 401, got %d", w.Code)
+	}
+}
+
+func TestMediaMTXAuthEndpoint(t *testing.T) {
+	r, _, _ := setupTestRouter(t, false)
+	cases := []struct {
+		body string
+		want int
+	}{
+		{`{"action":"publish","path":"salon","user":"","password":""}`, http.StatusUnauthorized},
+		{`{"action":"publish","path":"salon","user":"publisher","password":"` + testPublishToken + `"}`, http.StatusOK},
+		{`{"action":"read","path":"salon","user":"reader","password":"` + testReadToken + `"}`, http.StatusOK},
+		{`{"action":"read","path":"salon","user":"publisher","password":"` + testPublishToken + `"}`, http.StatusUnauthorized},
+		{`{"action":"api","user":"api","password":"` + testInternalToken + `"}`, http.StatusOK},
+		{`not json`, http.StatusBadRequest},
+	}
+	for _, c := range cases {
+		if w := do(r, http.MethodPost, "/internal/mediamtx/auth", c.body); w.Code != c.want {
+			t.Errorf("%s: expected %d, got %d", c.body, c.want, w.Code)
+		}
+	}
+	// No debe existir bajo /api (el nginx público solo proxifica /api/)
+	if w := do(r, http.MethodPost, "/api/internal/mediamtx/auth", `{}`); w.Code != http.StatusUnauthorized && w.Code != http.StatusNotFound {
+		t.Errorf("auth endpoint must not be reachable under /api, got %d", w.Code)
+	}
+}
+
+func TestPublishCredentialsRequireOperator(t *testing.T) {
+	r, jwtSvc, _ := setupTestRouter(t, false)
+	viewer, _ := jwtSvc.GenerateToken("viewer1", "viewer")
+	operator, _ := jwtSvc.GenerateToken("op1", "operator")
+
+	if w := do(r, http.MethodGet, "/api/media/publish-credentials", ""); w.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous: expected 401, got %d", w.Code)
+	}
+	if w := do(r, http.MethodGet, "/api/media/publish-credentials", "", bearer(viewer)); w.Code != http.StatusForbidden {
+		t.Errorf("viewer: expected 403, got %d", w.Code)
+	}
+	w := do(r, http.MethodGet, "/api/media/publish-credentials", "", bearer(operator))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), testPublishToken) {
+		t.Errorf("operator: expected 200 with credentials, got %d", w.Code)
 	}
 }

@@ -32,6 +32,8 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 - `POST /api/auth/register`: Auto-registro **desactivado por defecto** (`ALLOW_REGISTRATION=true` para activarlo). Siempre crea usuarios `viewer`.
 - `POST /api/media/session`: (Bearer) Emite la cookie HttpOnly `bb_media` que autoriza SSE, snapshots y streams.
 - `DELETE /api/media/session`: Borra la cookie de medios (logout).
+- `GET /api/media/publish-credentials`: (admin/operator) Usuario y clave para publicar desde móviles/OBS en MediaMTX.
+- `POST /internal/mediamtx/auth`: Endpoint `authHTTPAddress` de MediaMTX (`authMethod: http`). Fuera de `/api` para que el nginx público no lo exponga.
 - `GET /api/media/check`: 204 si la petición trae credenciales de medios válidas. Lo usa nginx (`auth_request`) para `/stream/` y `/whep/`.
 - `GET /api/users/me`: Información del usuario autenticado.
 
@@ -73,6 +75,8 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 | `DB_SSLMODE` | Modo SSL de conexión PostgreSQL | `disable` |
 | `JWT_SECRET` | **Obligatorio.** Clave HMAC de los JWT (≥32 caracteres). La API no arranca si falta o es un valor publicado | — |
 | `INTERNAL_TOKEN` | **Obligatorio.** Token de agentes y motion-detector (≥24 caracteres). Equivale a rol admin | — |
+| `MEDIA_PUBLISH_TOKEN` | Clave para publicar en MediaMTX (`rtsp://publisher:<clave>@host:8554/<cámara>`, `rtmp://host:1935/<cámara>?user=publisher&pass=<clave>`) | — |
+| `MEDIA_READ_TOKEN` | Clave de lectura de MediaMTX (motion-detector y nginx de Telescreen) | — |
 | `ADMIN_INITIAL_PASSWORD` | Password del usuario `admin` al crear la BD vacía. Si no se define, se genera y se imprime una vez en el log | *(aleatoria)* |
 | `ALLOW_REGISTRATION` | Habilita `POST /api/auth/register` (crea solo `viewer`) | `false` |
 | `MEDIAMTX_API_URL` | URL de la API v3 de MediaMTX | `http://localhost:9997` |
