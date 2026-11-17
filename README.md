@@ -29,33 +29,41 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 
 ### Autenticación
 - `POST /api/auth/login`: Inicio de sesión de usuario y emisión de token JWT.
-- `POST /api/auth/register`: Registro de nuevos usuarios.
+- `POST /api/auth/register`: Auto-registro **desactivado por defecto** (`ALLOW_REGISTRATION=true` para activarlo). Siempre crea usuarios `viewer`.
+- `POST /api/media/session`: (Bearer) Emite la cookie HttpOnly `bb_media` que autoriza SSE, snapshots y streams.
+- `DELETE /api/media/session`: Borra la cookie de medios (logout).
+- `GET /api/media/check`: 204 si la petición trae credenciales de medios válidas. Lo usa nginx (`auth_request`) para `/stream/` y `/whep/`.
 - `GET /api/users/me`: Información del usuario autenticado.
 
 ### Cámaras
 - `GET /api/cameras`: Listado de cámaras enriquecido con telemetría en vivo desde MediaMTX.
 - `POST /api/cameras`: Registro de una nueva cámara.
+- `POST /api/cameras/heartbeat`: Heartbeat y auto-registro de agentes (Internal Token u operador/admin).
 - `PUT /api/cameras/:id`: Modificación de parámetros de captura y umbrales de movimiento.
 - `DELETE /api/cameras/:id`: Eliminación de una cámara.
 - `GET /api/cameras/search?name=...`: Búsqueda de cámaras por nombre.
 
 ### Alertas y Detección de Movimiento
-- `POST /api/alerts`: Ingesta de nueva alerta con snapshot forense (requiere `token` o JWT).
-- `GET /api/alerts/stream`: Flujo en tiempo real Server-Sent Events (SSE).
+- `POST /api/alerts`: Ingesta de nueva alerta con snapshot forense (solo Internal Token: cabecera `X-Internal-Token`, `token` en form o query).
+- `GET /api/alerts/stream`: Flujo en tiempo real Server-Sent Events (SSE). Requiere Bearer o cookie `bb_media`.
+- `GET /api/alerts/snapshots/<fichero>`: Capturas. Requiere Bearer o cookie `bb_media`.
 - `GET /api/alerts`: Consulta paginada de alertas con filtros de estado y cámara.
 - `GET /api/alerts/unread-count`: Contador de alertas pendientes de acuse de recibo.
 - `POST|PUT /api/alerts/:id/ack`: Acuse de recibo de una alerta.
 - `POST|PUT /api/alerts/ack-all`: Acuse de recibo masivo de todas las alertas pendientes.
 - `DELETE /api/alerts/:id`: Eliminación de una alerta y borrado físico de su imagen del disco.
 - `DELETE /api/alerts`: Limpieza total del historial y borrado físico de todas las capturas.
-- `GET /api/motion/config`: Configuración JSON para el daemon de detección de movimiento.
+- `GET /api/motion/config`: Configuración JSON para el daemon de detección de movimiento (Internal Token).
 
 ---
 
 ## ⚙️ Variables de Entorno
 
+> Genera secretos con `openssl rand -base64 48`.
+
 | Variable | Descripción | Valor por Defecto |
 |---|---|---|
+| `APP_ENV` | `production` o `dev`. En `dev` se permiten secretos por defecto (con aviso) | `production` |
 | `PORT` | Puerto HTTP del servidor Gin | `8080` |
 | `DB_HOST` | Host de PostgreSQL | `localhost` |
 | `DB_PORT` | Puerto de PostgreSQL | `5432` |
@@ -63,8 +71,10 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 | `DB_PASSWORD` | Contraseña de base de datos | `admin` |
 | `DB_NAME` | Nombre de la base de datos | `bigbrother` |
 | `DB_SSLMODE` | Modo SSL de conexión PostgreSQL | `disable` |
-| `JWT_SECRET` | Clave secreta HMAC para firma de tokens JWT | *(Clave predeterminada)* |
-| `INTERNAL_TOKEN` | Token secreto para agentes y microservicios internos | `internal-token-pro` |
+| `JWT_SECRET` | **Obligatorio.** Clave HMAC de los JWT (≥32 caracteres). La API no arranca si falta o es un valor publicado | — |
+| `INTERNAL_TOKEN` | **Obligatorio.** Token de agentes y motion-detector (≥24 caracteres). Equivale a rol admin | — |
+| `ADMIN_INITIAL_PASSWORD` | Password del usuario `admin` al crear la BD vacía. Si no se define, se genera y se imprime una vez en el log | *(aleatoria)* |
+| `ALLOW_REGISTRATION` | Habilita `POST /api/auth/register` (crea solo `viewer`) | `false` |
 | `MEDIAMTX_API_URL` | URL de la API v3 de MediaMTX | `http://localhost:9997` |
 | `MEDIAMTX_RTSP_HOST` | Host RTSP para generar URLs de streaming | `localhost` |
 

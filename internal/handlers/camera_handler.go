@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -15,8 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
-
-var validCameraNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-\.]{2,48}$`)
 
 type CameraHandler struct {
 	db         *gorm.DB
@@ -116,7 +113,7 @@ func (h *CameraHandler) Create(c *gin.Context) {
 		})
 		return
 	}
-	if !validCameraNameRegex.MatchString(trimmedName) {
+	if !models.IsValidCameraName(trimmedName) {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Message: "El nombre de la cámara debe contener entre 2 y 48 caracteres alfanuméricos, guiones o puntos (sin espacios)",
 			Error:   "InvalidCameraNameFormat",
@@ -246,7 +243,7 @@ func (h *CameraHandler) Update(c *gin.Context) {
 	// Actualización selectiva de campos presentes en el payload
 	if v, ok := input["name"].(string); ok && strings.TrimSpace(v) != "" {
 		newName := strings.TrimSpace(v)
-		if !validCameraNameRegex.MatchString(newName) {
+		if !models.IsValidCameraName(newName) {
 			c.JSON(http.StatusBadRequest, models.ErrorResponse{
 				Message: "El nombre de la cámara debe contener entre 2 y 48 caracteres alfanuméricos, guiones o puntos (sin espacios)",
 				Error:   "InvalidCameraNameFormat",
@@ -388,6 +385,13 @@ func (h *CameraHandler) Heartbeat(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Message: "Camera name is required",
 			Error:   "Invalid name",
+		})
+		return
+	}
+	if !models.IsValidCameraName(name) {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Message: "El nombre de la cámara debe contener entre 2 y 48 caracteres alfanuméricos, guiones o puntos (sin espacios)",
+			Error:   "InvalidCameraNameFormat",
 		})
 		return
 	}

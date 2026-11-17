@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -9,38 +10,91 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// MediaCookieName es la cookie HttpOnly que autoriza lecturas de medios
+// (SSE de alertas, snapshots y streams HLS/WebRTC vía nginx auth_request).
+const MediaCookieName = "bb_media"
+
+func bearerToken(c *gin.Context) (string, bool) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return "", false
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return "", false
+	}
+	return strings.TrimSpace(parts[1]), true
+}
+
+// IsInternalToken compara en tiempo constante con el token interno de servicios.
+func IsInternalToken(cfg *config.Config, token string) bool {
+	return cfg.InternalToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(cfg.InternalToken)) == 1
+}
+
+// authenticateBearer valida un Bearer (token interno o JWT de sesión) y rellena el contexto.
+func authenticateBearer(c *gin.Context, jwtService *auth.JWTService, cfg *config.Config, token string) bool {
+	if IsInternalToken(cfg, token) {
+		c.Set("username", "internal_agent")
+		c.Set("role", "admin")
+		c.Set("is_internal", true)
+		return true
+	}
+
+	username, role, err := jwtService.ValidateToken(token)
+	if err != nil {
+		return false
+	}
+	c.Set("username", username)
+	c.Set("role", role)
+	c.Set("is_internal", false)
+	return true
+}
+
 func AuthMiddleware(jwtService *auth.JWTService, cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		if c.GetHeader("Authorization") == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		token, ok := bearerToken(c)
+		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
 			return
 		}
 
-		tokenString := strings.TrimSpace(parts[1])
-
-		// 1. Comprobación de token interno (usado por el agente de cámara en camera/src/modules/config.py)
-		if cfg.InternalToken != "" && tokenString == cfg.InternalToken {
-			c.Set("username", "internal_agent")
-			c.Set("role", "admin")
-			c.Set("is_internal", true)
-			c.Next()
+		if !authenticateBearer(c, jwtService, cfg, token) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			return
 		}
+		c.Next()
+	}
+}
 
-		// 2. Comprobación de token JWT de usuario
-		username, role, err := jwtService.ValidateToken(tokenString)
-		if err != nil {
+// MediaAuthMiddleware protege recursos que el navegador pide sin poder añadir
+// cabeceras (EventSource, <img>, <video>, hls.js nativo en Safari): acepta
+// Bearer como AuthMiddleware o, si no hay, la cookie de medios.
+func MediaAuthMiddleware(jwtService *auth.JWTService, cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if token, ok := bearerToken(c); ok {
+			if authenticateBearer(c, jwtService, cfg, token) {
+				c.Next()
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			return
 		}
 
+		cookie, err := c.Cookie(MediaCookieName)
+		if err != nil || cookie == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Media session required"})
+			return
+		}
+		username, role, err := jwtService.ValidateMediaToken(cookie)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired media session"})
+			return
+		}
 		c.Set("username", username)
 		c.Set("role", role)
 		c.Set("is_internal", false)

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bigbrother/api/internal/auth"
+	"github.com/bigbrother/api/internal/middleware"
 	"github.com/bigbrother/api/internal/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -102,14 +103,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 type RegisterRequest struct {
-	Username       string `json:"username" binding:"required"`
-	Email          string `json:"email" binding:"required"`
-	Password       string `json:"password"`
-	HashedPassword string `json:"hashedPassword"`
-	Name           string `json:"name"`
-	Role           string `json:"role"`
-	Permissions    string `json:"permissions"`
-	Photo          string `json:"photo"`
+	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password"`
+	Name     string `json:"name"`
+	Photo    string `json:"photo"`
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -123,9 +121,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	pass := strings.TrimSpace(req.Password)
-	if pass == "" {
-		pass = strings.TrimSpace(req.HashedPassword)
-	}
 
 	username := strings.TrimSpace(req.Username)
 	email := strings.TrimSpace(req.Email)
@@ -191,18 +186,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	role := strings.TrimSpace(req.Role)
-	if role == "" {
-		role = "operator"
-	}
-
+	// El auto-registro NUNCA permite elegir rol ni permisos: siempre "viewer".
+	// Solo un admin puede elevar privilegios desde /api/users.
 	newUser := models.User{
 		Username:       username,
 		Email:          email,
 		HashedPassword: string(hashedBytes),
 		Name:           strings.TrimSpace(req.Name),
-		Role:           role,
-		Permissions:    req.Permissions,
+		Role:           "viewer",
+		Permissions:    "",
 		Photo:          req.Photo,
 		Disabled:       false,
 	}
@@ -219,4 +211,56 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		"message": "Usuario registrado correctamente",
 		"user":    newUser.ToDTO(),
 	})
+}
+
+// StartMediaSession emite la cookie HttpOnly de medios a partir de la sesión Bearer actual.
+// Telescreen la llama tras el login y la renueva periódicamente.
+func (h *AuthHandler) StartMediaSession(c *gin.Context) {
+	if c.GetBool("is_internal") {
+		c.JSON(http.StatusForbidden, models.ErrorResponse{
+			Message: "Los tokens internos no pueden abrir sesiones de medios",
+			Error:   "Forbidden",
+		})
+		return
+	}
+
+	username := c.GetString("username")
+	var user models.User
+	if err := h.db.Where("LOWER(username) = LOWER(?)", username).First(&user).Error; err != nil || user.Disabled {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Message: "Usuario no válido o deshabilitado",
+			Error:   "Unauthorized",
+		})
+		return
+	}
+
+	token, err := h.jwtService.GenerateMediaToken(user.Username, user.ToDTO().Role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Message: "Error al generar la sesión de medios",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	setMediaCookie(c, token, int(auth.MediaTTL.Seconds()))
+	c.JSON(http.StatusOK, gin.H{"expiresIn": int(auth.MediaTTL.Seconds())})
+}
+
+// EndMediaSession borra la cookie de medios (logout).
+func (h *AuthHandler) EndMediaSession(c *gin.Context) {
+	setMediaCookie(c, "", -1)
+	c.Status(http.StatusNoContent)
+}
+
+// MediaCheck responde 204 si la petición trae credenciales de medios válidas.
+// Lo usa nginx (auth_request) para proteger /stream/ (HLS) y /whep/ (WebRTC).
+func (h *AuthHandler) MediaCheck(c *gin.Context) {
+	c.Status(http.StatusNoContent)
+}
+
+func setMediaCookie(c *gin.Context, value string, maxAge int) {
+	secure := c.Request.TLS != nil || strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
+	c.SetSameSite(http.SameSiteStrictMode)
+	c.SetCookie(middleware.MediaCookieName, value, maxAge, "/", "", secure, true)
 }
