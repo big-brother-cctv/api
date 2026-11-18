@@ -29,6 +29,10 @@ type Config struct {
 	DataDir              string
 	AlertsDir            string
 	AlertRetentionDays   int
+	ClipsEnabled         bool
+	MediaMTXPlaybackURL  string
+	ClipPreSeconds       int
+	ClipPostSeconds      int
 	VAPIDPublicKey       string
 	VAPIDPrivateKey      string
 	VAPIDSubject         string
@@ -95,6 +99,10 @@ func LoadConfig() *Config {
 		DataDir:              dataDir,
 		AlertsDir:            alertsDir,
 		AlertRetentionDays:   getEnvInt("ALERT_RETENTION_DAYS", 30),
+		ClipsEnabled:         !strings.EqualFold(os.Getenv("CLIPS_ENABLED"), "false"),
+		MediaMTXPlaybackURL:  getEnv("MEDIAMTX_PLAYBACK_URL", "http://localhost:9996"),
+		ClipPreSeconds:       getEnvInt("CLIP_PRE_SECONDS", 30),
+		ClipPostSeconds:      getEnvInt("CLIP_POST_SECONDS", 5),
 		VAPIDPublicKey:       os.Getenv("VAPID_PUBLIC_KEY"),
 		VAPIDPrivateKey:      os.Getenv("VAPID_PRIVATE_KEY"),
 		VAPIDSubject:         os.Getenv("VAPID_SUBJECT"),

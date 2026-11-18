@@ -110,6 +110,8 @@ type MotionAlert struct {
 	Severity     string    `gorm:"default:'warning'" json:"severity"` // 'info', 'warning', 'critical'
 	// Notified indica si la alerta avisó (push/toast/alarma) según el modo casa/fuera.
 	Notified bool `gorm:"default:false" json:"notified"`
+	// ClipPath: clip de vídeo del evento (/api/alerts/snapshots/clip_*.mp4); vacío hasta que se extrae.
+	ClipPath string `json:"clipPath"`
 }
 
 func (MotionAlert) TableName() string {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -32,7 +33,13 @@ type SnapshotSigner interface {
 	SignSnapshotURL(snapshotPath string, now time.Time) string
 }
 
+// ClipCapturer extrae el clip de vídeo de una alerta (bloqueante; se llama en una goroutine).
+type ClipCapturer interface {
+	Capture(ctx context.Context, alert models.MotionAlert)
+}
+
 type AlertHandler struct {
+	clips       ClipCapturer
 	notifier    AlertNotifier
 	signer      SnapshotSigner
 	db          *gorm.DB
@@ -84,6 +91,9 @@ func (h *AlertHandler) allowAlert(cameraName string, now time.Time, cooldown tim
 	h.cooldowns[cameraName] = now
 	return true
 }
+
+// SetClipCapturer activa la extracción de clips de vídeo por alerta.
+func (h *AlertHandler) SetClipCapturer(c ClipCapturer) { h.clips = c }
 
 // SetNotifier activa el envío de notificaciones push al registrar alertas.
 func (h *AlertHandler) SetNotifier(n AlertNotifier, signer SnapshotSigner) {
@@ -222,6 +232,11 @@ func (h *AlertHandler) Create(c *gin.Context) {
 	// Difundir inmediatamente a todos los clientes SSE conectados (Telescreen)
 	h.hub.Broadcast(&alert)
 
+	// Clip de vídeo del evento desde el búfer de MediaMTX (llega ~10-40 s después)
+	if h.clips != nil {
+		go h.clips.Capture(context.Background(), alert)
+	}
+
 	// Notificación push (móvil bloqueado / app cerrada). Asíncrona: no retrasa la respuesta.
 	if h.notifier != nil && alert.Notified {
 		imageURL := ""
@@ -336,11 +351,11 @@ func (h *AlertHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// Borrar fichero de snapshot si existe
-	if alert.SnapshotPath != "" {
-		filename := filepath.Base(alert.SnapshotPath)
-		diskPath := filepath.Join(h.storageDir, filename)
-		_ = os.Remove(diskPath)
+	// Borrar snapshot y clip de vídeo si existen
+	for _, p := range []string{alert.SnapshotPath, alert.ClipPath} {
+		if p != "" {
+			_ = os.Remove(filepath.Join(h.storageDir, filepath.Base(p)))
+		}
 	}
 
 	if err := h.db.Delete(&alert).Error; err != nil {
@@ -359,8 +374,10 @@ func (h *AlertHandler) ClearAll(c *gin.Context) {
 	var alerts []models.MotionAlert
 	h.db.Find(&alerts)
 	for _, a := range alerts {
-		if a.SnapshotPath != "" {
-			_ = os.Remove(filepath.Join(h.storageDir, filepath.Base(a.SnapshotPath)))
+		for _, p := range []string{a.SnapshotPath, a.ClipPath} {
+			if p != "" {
+				_ = os.Remove(filepath.Join(h.storageDir, filepath.Base(p)))
+			}
 		}
 	}
 	h.db.Exec("DELETE FROM alerts")
