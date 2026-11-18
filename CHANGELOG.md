@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/big-brother-cctv/api/compare/v1.1.0...v1.2.0) (2026-11-18)
+
+
+### Features
+
+* alert retention and per-camera cooldown ([b907f12](https://github.com/big-brother-cctv/api/commit/b907f124398e108af9703fba62f27f27f506325f))
+* alert retention and per-camera cooldown ([c2f815a](https://github.com/big-brother-cctv/api/commit/c2f815a0df15ad9715c6e3305e193ecf257a74f8))
+
 ## [1.1.0](https://github.com/big-brother-cctv/api/compare/v1.0.0...v1.1.0) (2026-11-17)
 
 
