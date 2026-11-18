@@ -78,6 +78,8 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 | `MEDIA_PUBLISH_TOKEN` | Clave para publicar en MediaMTX (`rtsp://publisher:<clave>@host:8554/<cámara>`, `rtmp://host:1935/<cámara>?user=publisher&pass=<clave>`) | — |
 | `MEDIA_READ_TOKEN` | Clave de lectura de MediaMTX (motion-detector y nginx de Telescreen) | — |
 | `ADMIN_INITIAL_PASSWORD` | Password del usuario `admin` al crear la BD vacía. Si no se define, se genera y se imprime una vez en el log | *(aleatoria)* |
+| `ALERT_RETENTION_DAYS` | Días que se conservan alertas y snapshots (0 = sin límite). Limpieza cada hora | `30` |
+| `ALERT_MAX_STORAGE_MB` | Espacio máximo de snapshots; al superarlo se borran las alertas más antiguas (0 = sin límite) | `2048` |
 | `ALLOW_REGISTRATION` | Habilita `POST /api/auth/register` (crea solo `viewer`) | `false` |
 | `MEDIAMTX_API_URL` | URL de la API v3 de MediaMTX | `http://localhost:9997` |
 | `MEDIAMTX_RTSP_HOST` | Host RTSP para generar URLs de streaming | `localhost` |

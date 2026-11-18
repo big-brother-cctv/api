@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -27,6 +28,8 @@ type Config struct {
 	MediaMTXRTSPHost     string
 	DataDir              string
 	AlertsDir            string
+	AlertRetentionDays   int
+	AlertMaxStorageMB    int
 }
 
 // Valores que estuvieron publicados en el repositorio. Nunca deben aceptarse fuera de desarrollo.
@@ -48,6 +51,20 @@ func getEnv(key, defaultVal string) string {
 		return val
 	}
 	return defaultVal
+}
+
+// getEnvInt lee un entero >= 0; si falta o es inválido usa el valor por defecto.
+func getEnvInt(key string, defaultVal int) int {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return defaultVal
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		log.Printf("[CONFIG] %s=%q no es un entero >= 0; usando %d", key, v, defaultVal)
+		return defaultVal
+	}
+	return n
 }
 
 func LoadConfig() *Config {
@@ -74,6 +91,8 @@ func LoadConfig() *Config {
 		MediaMTXRTSPHost:     getEnv("MEDIAMTX_RTSP_HOST", "localhost"),
 		DataDir:              dataDir,
 		AlertsDir:            alertsDir,
+		AlertRetentionDays:   getEnvInt("ALERT_RETENTION_DAYS", 30),
+		AlertMaxStorageMB:    getEnvInt("ALERT_MAX_STORAGE_MB", 2048),
 	}
 }
 

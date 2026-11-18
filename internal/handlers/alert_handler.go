@@ -46,7 +46,7 @@ func NewAlertHandler(db *gorm.DB, hub *alerts.Hub, cfg *config.Config) *AlertHan
 		cfg:         cfg,
 		storageDir:  storageDir,
 		cooldowns:   make(map[string]time.Time),
-		cooldownSec: 15 * time.Second, // 15 segundos entre eventos de la misma cámara para evitar inundación
+		cooldownSec: 15 * time.Second, // por defecto; se usa motionCooldown de la cámara si está definido
 	}
 }
 
@@ -59,6 +59,17 @@ func safeFileComponent(name string) string {
 		return name
 	}
 	return "unknown"
+}
+
+// allowAlert aplica el cooldown por cámara y registra la alerta si se permite.
+func (h *AlertHandler) allowAlert(cameraName string, now time.Time, cooldown time.Duration) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if last, ok := h.cooldowns[cameraName]; ok && now.Sub(last) < cooldown {
+		return false
+	}
+	h.cooldowns[cameraName] = now
+	return true
 }
 
 // StorageDir devuelve la ruta donde se guardan y sirven los snapshots de alertas
@@ -100,22 +111,26 @@ func (h *AlertHandler) Create(c *gin.Context) {
 		}
 	}
 
+	// Buscar la cámara asociada: aporta CameraID y su cooldown configurado (motionCooldown)
+	var cameraID *uint
+	cooldown := h.cooldownSec
+	var cam models.Camera
+	if err := h.db.Where("name = ?", cameraName).First(&cam).Error; err == nil {
+		cameraID = &cam.ID
+		if cam.MotionCooldown > 0 {
+			cooldown = time.Duration(cam.MotionCooldown) * time.Second
+		}
+	}
+
 	// Smart Cooldown por cámara (con posibilidad de bypass con ignore_cooldown para tests)
 	now := time.Now()
 	ignoreCooldown := c.DefaultPostForm("ignore_cooldown", "false") == "true" || c.Query("ignore_cooldown") == "true"
-	if !ignoreCooldown {
-		h.mu.Lock()
-		lastAlert, exists := h.cooldowns[cameraName]
-		if exists && now.Sub(lastAlert) < h.cooldownSec {
-			h.mu.Unlock()
-			c.JSON(http.StatusOK, gin.H{
-				"status":  "skipped",
-				"message": fmt.Sprintf("Alerta omitida por cooldown activo para '%s'", cameraName),
-			})
-			return
-		}
-		h.cooldowns[cameraName] = now
-		h.mu.Unlock()
+	if !ignoreCooldown && !h.allowAlert(cameraName, now, cooldown) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "skipped",
+			"message": fmt.Sprintf("Alerta omitida por cooldown activo para '%s'", cameraName),
+		})
+		return
 	}
 
 	// Procesar imagen si viene adjunta como multipart o base64
@@ -160,13 +175,6 @@ func (h *AlertHandler) Create(c *gin.Context) {
 				}
 			}
 		}
-	}
-
-	// Buscar CameraID asociada si existe en base de datos
-	var cameraID *uint
-	var cam models.Camera
-	if err := h.db.Where("name = ?", cameraName).First(&cam).Error; err == nil {
-		cameraID = &cam.ID
 	}
 
 	alert := models.MotionAlert{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/bigbrother/api/internal/handlers"
 	"github.com/bigbrother/api/internal/mediamtx"
 	"github.com/bigbrother/api/internal/middleware"
+	"github.com/bigbrother/api/internal/retention"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -31,6 +33,12 @@ func main() {
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
 	mtxService := mediamtx.NewService(cfg)
 	mtxService.StartSyncLoop(db)
+
+	// Retención de alertas: el PVC de snapshots se comparte con otros servicios del homelab
+	retention.New(retention.GormStore{DB: db}, cfg.AlertsDir, retention.Policy{
+		MaxAge:   time.Duration(cfg.AlertRetentionDays) * 24 * time.Hour,
+		MaxBytes: int64(cfg.AlertMaxStorageMB) * 1024 * 1024,
+	}).Start(context.Background(), time.Hour)
 
 	r := newRouter(cfg, db, jwtService, mtxService, alerts.NewHub())
 
