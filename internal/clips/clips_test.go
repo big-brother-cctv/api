@@ -128,3 +128,18 @@ func TestCaptureGivesUpWithoutRecording(t *testing.T) {
 		t.Fatal("no clip must be stored when there is no recording")
 	}
 }
+
+func TestNoRecordingDirectoryIsNotAnError(t *testing.T) {
+	// Respuesta real de MediaMTX v1.21 cuando la cámara aún no tiene carpeta de grabación
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"status":"error","error":"lstat /recordings/salon: no such file or directory"}`))
+	}))
+	defer srv.Close()
+	svc := New(Config{PlaybackURL: srv.URL, InternalToken: "t", Dir: t.TempDir(), Pre: 30 * time.Second, Post: 5 * time.Second}, &fakeUpdater{path: map[uint]string{}})
+	now := time.Now()
+	covered, err := svc.covered(context.Background(), "salon", now.Add(-30*time.Second), now)
+	if err != nil || covered {
+		t.Fatalf("missing recording dir must be 'not covered' without error, got covered=%v err=%v", covered, err)
+	}
+}
