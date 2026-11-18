@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/big-brother-cctv/api/compare/v1.4.0...v1.5.0) (2026-11-18)
+
+
+### Features
+
+* video clip per alert from the MediaMTX recording buffer ([9963739](https://github.com/big-brother-cctv/api/commit/99637394e099062dbcfdf09ba79837c793d7389a))
+* video clip per alert from the MediaMTX recording buffer ([b95f5e2](https://github.com/big-brother-cctv/api/commit/b95f5e2905545dd7c71a8a3c696ad1d5ff59e921))
+
 ## [1.4.0](https://github.com/big-brother-cctv/api/compare/v1.3.0...v1.4.0) (2026-11-18)
 
 
