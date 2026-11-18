@@ -202,3 +202,21 @@ func TestPublishCredentialsRequireOperator(t *testing.T) {
 		t.Errorf("operator: expected 200 with credentials, got %d", w.Code)
 	}
 }
+
+func TestNotificationSettingsAuth(t *testing.T) {
+	r, jwtSvc, _ := setupTestRouter(t, false)
+	viewer, _ := jwtSvc.GenerateToken("viewer1", "viewer")
+
+	if w := do(r, http.MethodGet, "/api/settings/notifications", ""); w.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous GET: expected 401, got %d", w.Code)
+	}
+	if w := do(r, http.MethodPut, "/api/settings/notifications/mode", `{"mode":"home"}`); w.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous mode change: expected 401, got %d", w.Code)
+	}
+	if w := do(r, http.MethodPut, "/api/settings/notifications/rules", `{"home":[],"away":[]}`, bearer(viewer)); w.Code != http.StatusForbidden {
+		t.Errorf("viewer editing rules: expected 403, got %d", w.Code)
+	}
+	if w := do(r, http.MethodPut, "/api/settings/notifications/mode", `{"mode":"home"}`, bearer(testInternalToken)); w.Code != http.StatusForbidden {
+		t.Errorf("internal token changing mode: expected 403, got %d", w.Code)
+	}
+}

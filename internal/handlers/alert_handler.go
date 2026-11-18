@@ -17,6 +17,7 @@ import (
 	"github.com/bigbrother/api/internal/config"
 	"github.com/bigbrother/api/internal/middleware"
 	"github.com/bigbrother/api/internal/models"
+	"github.com/bigbrother/api/internal/notify"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -194,7 +195,12 @@ func (h *AlertHandler) Create(c *gin.Context) {
 		}
 	}
 
+	// Modo casa/fuera: la alerta se guarda siempre, pero solo avisa si su clase está activa
+	notifySettings := notify.Load(h.db)
+	shouldNotify := notifySettings.ShouldNotify(label)
+
 	alert := models.MotionAlert{
+		Notified:     shouldNotify,
 		CameraID:     cameraID,
 		CameraName:   cameraName,
 		SnapshotPath: snapshotPath,
@@ -217,7 +223,7 @@ func (h *AlertHandler) Create(c *gin.Context) {
 	h.hub.Broadcast(&alert)
 
 	// Notificación push (móvil bloqueado / app cerrada). Asíncrona: no retrasa la respuesta.
-	if h.notifier != nil {
+	if h.notifier != nil && alert.Notified {
 		imageURL := ""
 		if alert.SnapshotPath != "" && h.signer != nil {
 			imageURL = h.signer.SignSnapshotURL(alert.SnapshotPath, now)

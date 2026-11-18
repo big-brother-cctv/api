@@ -128,6 +128,12 @@ func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtx
 		{
 			// Sesión de medios (cookie HttpOnly) a partir del Bearer actual
 			protected.POST("/media/session", authHandler.StartMediaSession)
+			// Modo casa/fuera y reglas de notificación por clase de detección
+			notifyHandler := handlers.NewNotificationSettingsHandler(db)
+			protected.GET("/settings/notifications", notifyHandler.Get)
+			protected.PUT("/settings/notifications/mode", notifyHandler.SetMode)
+			protected.PUT("/settings/notifications/rules", middleware.RequireRole("admin", "operator"), notifyHandler.UpdateRules)
+
 			// Notificaciones Web Push (cualquier usuario autenticado, sobre sus propios dispositivos)
 			if pushService != nil {
 				pushHandler := handlers.NewPushHandler(pushService)
