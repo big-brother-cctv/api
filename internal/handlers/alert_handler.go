@@ -21,7 +21,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// AlertNotifier envía la alerta fuera del dashboard (Web Push). imageURL es una URL firmada.
+type AlertNotifier interface {
+	NotifyAlert(alert models.MotionAlert, imageURL string)
+}
+
+// SnapshotSigner firma URLs de snapshots para clientes sin cookie de sesión.
+type SnapshotSigner interface {
+	SignSnapshotURL(snapshotPath string, now time.Time) string
+}
+
 type AlertHandler struct {
+	notifier    AlertNotifier
+	signer      SnapshotSigner
 	db          *gorm.DB
 	hub         *alerts.Hub
 	cfg         *config.Config
@@ -70,6 +82,11 @@ func (h *AlertHandler) allowAlert(cameraName string, now time.Time, cooldown tim
 	}
 	h.cooldowns[cameraName] = now
 	return true
+}
+
+// SetNotifier activa el envío de notificaciones push al registrar alertas.
+func (h *AlertHandler) SetNotifier(n AlertNotifier, signer SnapshotSigner) {
+	h.notifier, h.signer = n, signer
 }
 
 // StorageDir devuelve la ruta donde se guardan y sirven los snapshots de alertas
@@ -198,6 +215,15 @@ func (h *AlertHandler) Create(c *gin.Context) {
 
 	// Difundir inmediatamente a todos los clientes SSE conectados (Telescreen)
 	h.hub.Broadcast(&alert)
+
+	// Notificación push (móvil bloqueado / app cerrada). Asíncrona: no retrasa la respuesta.
+	if h.notifier != nil {
+		imageURL := ""
+		if alert.SnapshotPath != "" && h.signer != nil {
+			imageURL = h.signer.SignSnapshotURL(alert.SnapshotPath, now)
+		}
+		go h.notifier.NotifyAlert(alert, imageURL)
+	}
 
 	c.JSON(http.StatusCreated, alert)
 }

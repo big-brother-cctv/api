@@ -13,6 +13,7 @@ import (
 	"github.com/bigbrother/api/internal/handlers"
 	"github.com/bigbrother/api/internal/mediamtx"
 	"github.com/bigbrother/api/internal/middleware"
+	"github.com/bigbrother/api/internal/push"
 	"github.com/bigbrother/api/internal/retention"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -40,7 +41,13 @@ func main() {
 		MaxBytes: int64(cfg.AlertMaxStorageMB) * 1024 * 1024,
 	}).Start(context.Background(), time.Hour)
 
-	r := newRouter(cfg, db, jwtService, mtxService, alerts.NewHub())
+	pushService, err := push.NewService(db, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject)
+	if err != nil {
+		log.Printf("[PUSH] Notificaciones push desactivadas: %v", err)
+		pushService = nil
+	}
+
+	r := newRouter(cfg, db, jwtService, mtxService, alerts.NewHub(), pushService)
 
 	addr := ":" + cfg.Port
 	log.Printf("Big Brother Go Backend arrancando en %s", addr)
@@ -50,8 +57,11 @@ func main() {
 }
 
 // newRouter construye el router HTTP. Separado de main() para poder testear el enrutado.
-func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtxService *mediamtx.Service, alertsHub *alerts.Hub) *gin.Engine {
+func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtxService *mediamtx.Service, alertsHub *alerts.Hub, pushService *push.Service) *gin.Engine {
 	alertHandler := handlers.NewAlertHandler(db, alertsHub, cfg)
+	if pushService != nil {
+		alertHandler.SetNotifier(pushService, jwtService)
+	}
 	authHandler := handlers.NewAuthHandler(db, jwtService)
 	cameraHandler := handlers.NewCameraHandler(db, mtxService, cfg)
 	userHandler := handlers.NewUserHandler(db)
@@ -76,7 +86,7 @@ func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtx
 
 	// Capturas de movimiento: solo usuarios autenticados
 	snapshots := r.Group("/api/alerts/snapshots")
-	snapshots.Use(mediaAuth)
+	snapshots.Use(middleware.SnapshotAuthMiddleware(jwtService, cfg))
 	snapshots.Static("/", alertHandler.StorageDir())
 
 	// Endpoint authHTTPAddress de MediaMTX (authMethod: http). Fuera de /api para que el
@@ -118,6 +128,15 @@ func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtx
 		{
 			// Sesión de medios (cookie HttpOnly) a partir del Bearer actual
 			protected.POST("/media/session", authHandler.StartMediaSession)
+			// Notificaciones Web Push (cualquier usuario autenticado, sobre sus propios dispositivos)
+			if pushService != nil {
+				pushHandler := handlers.NewPushHandler(pushService)
+				protected.GET("/push/vapid-public-key", pushHandler.PublicKey)
+				protected.POST("/push/subscriptions", pushHandler.Subscribe)
+				protected.DELETE("/push/subscriptions", pushHandler.Unsubscribe)
+				protected.POST("/push/test", pushHandler.Test)
+			}
+
 			// Credenciales de publicación RTSP/RTMP para móviles y OBS
 			protected.GET("/media/publish-credentials", middleware.RequireRole("admin", "operator"), mtxAuthHandler.PublishCredentials)
 

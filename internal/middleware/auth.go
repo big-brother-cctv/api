@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/bigbrother/api/internal/auth"
 	"github.com/bigbrother/api/internal/config"
@@ -99,6 +100,23 @@ func MediaAuthMiddleware(jwtService *auth.JWTService, cfg *config.Config) gin.Ha
 		c.Set("role", role)
 		c.Set("is_internal", false)
 		c.Next()
+	}
+}
+
+// SnapshotAuthMiddleware acepta una URL firmada (?exp=&sig=, para imágenes de notificaciones
+// push) o, si no la hay, las credenciales de medios habituales.
+func SnapshotAuthMiddleware(jwtService *auth.JWTService, cfg *config.Config) gin.HandlerFunc {
+	media := MediaAuthMiddleware(jwtService, cfg)
+	return func(c *gin.Context) {
+		if sig := c.Query("sig"); sig != "" {
+			if jwtService.VerifySnapshotSignature(c.Param("filepath"), c.Query("exp"), sig, time.Now()) {
+				c.Next()
+				return
+			}
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired signed URL"})
+			return
+		}
+		media(c)
 	}
 }
 
