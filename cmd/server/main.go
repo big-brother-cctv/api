@@ -8,6 +8,7 @@ import (
 
 	"github.com/bigbrother/api/internal/alerts"
 	"github.com/bigbrother/api/internal/auth"
+	"github.com/bigbrother/api/internal/clips"
 	"github.com/bigbrother/api/internal/config"
 	"github.com/bigbrother/api/internal/database"
 	"github.com/bigbrother/api/internal/handlers"
@@ -61,6 +62,16 @@ func newRouter(cfg *config.Config, db *gorm.DB, jwtService *auth.JWTService, mtx
 	alertHandler := handlers.NewAlertHandler(db, alertsHub, cfg)
 	if pushService != nil {
 		alertHandler.SetNotifier(pushService, jwtService)
+	}
+	if cfg.ClipsEnabled && db != nil {
+		alertHandler.SetClipCapturer(clips.New(clips.Config{
+			PlaybackURL:   cfg.MediaMTXPlaybackURL,
+			InternalToken: cfg.InternalToken,
+			Dir:           alertHandler.StorageDir(),
+			Pre:           time.Duration(cfg.ClipPreSeconds) * time.Second,
+			Post:          time.Duration(cfg.ClipPostSeconds) * time.Second,
+		}, clips.GormUpdater{DB: db}))
+		log.Printf("[CLIPS] Activos: %ds antes y %ds después de cada alerta (playback %s)", cfg.ClipPreSeconds, cfg.ClipPostSeconds, cfg.MediaMTXPlaybackURL)
 	}
 	authHandler := handlers.NewAuthHandler(db, jwtService)
 	cameraHandler := handlers.NewCameraHandler(db, mtxService, cfg)

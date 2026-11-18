@@ -39,8 +39,10 @@ func (f *fakeStore) DeleteAlerts(ids []uint) error {
 func (f *fakeStore) SnapshotFiles() (map[string]bool, error) {
 	m := map[string]bool{}
 	for _, a := range f.alerts {
-		if a.SnapshotPath != "" {
-			m[filepath.Base(a.SnapshotPath)] = true
+		for _, p := range []string{a.SnapshotPath, a.ClipPath} {
+			if p != "" {
+				m[filepath.Base(p)] = true
+			}
 		}
 	}
 	return m, nil
@@ -150,5 +152,46 @@ func TestDisabledPolicyDoesNothing(t *testing.T) {
 	}
 	if res.ExpiredAlerts+res.EvictedAlerts != 0 || len(st.alerts) != 3 {
 		t.Fatalf("disabled policy must not delete alerts: %+v", res)
+	}
+}
+
+func TestClipsAreDeletedWithTheirAlertAndNotTreatedAsOrphans(t *testing.T) {
+	now := time.Now()
+	st, dir := setup(t, 2, 100, now)
+	// Alerta 1 (reciente) y 2 (de hace un día) con clip; ficheros antiguos para que cuenten como posibles huérfanos
+	old := now.Add(-3 * time.Hour)
+	for _, id := range []uint{1, 2} {
+		a := st.alerts[id]
+		name := fmt.Sprintf("clip_%d.mp4", id)
+		p := filepath.Join(dir, name)
+		_ = os.WriteFile(p, make([]byte, 1000), 0o644)
+		_ = os.Chtimes(p, old, old)
+		a.ClipPath = "/api/alerts/snapshots/" + name
+		st.alerts[id] = a
+	}
+	// Temporal de escritura reciente: no tocar
+	tmp := filepath.Join(dir, ".clip_9.mp4.tmp")
+	_ = os.WriteFile(tmp, []byte("x"), 0o644)
+
+	svc := New(st, dir, Policy{MaxAge: 12 * time.Hour})
+	svc.now = func() time.Time { return now }
+	res, err := svc.RunOnce()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ExpiredAlerts != 1 || res.OrphanFiles != 0 {
+		t.Fatalf("expected 1 expired alert and no orphans, got %+v", res)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "clip_1.mp4")); err != nil {
+		t.Fatal("clip of a kept alert must not be deleted as orphan")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "clip_2.mp4")); !os.IsNotExist(err) {
+		t.Fatal("clip of an expired alert must be deleted")
+	}
+	if res.BytesFreed != 1100 {
+		t.Fatalf("expected snapshot+clip bytes freed (1100), got %d", res.BytesFreed)
+	}
+	if _, err := os.Stat(tmp); err != nil {
+		t.Fatal("recent temp file must be kept")
 	}
 }

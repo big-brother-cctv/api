@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bigbrother/api/internal/models"
@@ -32,7 +33,7 @@ type Store interface {
 	// Si before no es cero, solo las detectadas antes de esa fecha.
 	OldestAlerts(before time.Time, limit int) ([]models.MotionAlert, error)
 	DeleteAlerts(ids []uint) error
-	// SnapshotFiles devuelve el nombre de fichero de todos los snapshots referenciados.
+	// SnapshotFiles devuelve el nombre de fichero de todos los snapshots y clips referenciados.
 	SnapshotFiles() (map[string]bool, error)
 }
 
@@ -135,7 +136,7 @@ func (s *Service) RunOnce() (Result, error) {
 			var projected = used
 			for _, a := range alerts {
 				chunk = append(chunk, a)
-				projected -= fileSize(s.snapshotDiskPath(a))
+				projected -= s.alertSize(a)
 				if projected <= s.policy.MaxBytes {
 					break
 				}
@@ -156,11 +157,23 @@ func (s *Service) RunOnce() (Result, error) {
 	return res, nil
 }
 
-func (s *Service) snapshotDiskPath(a models.MotionAlert) string {
-	if a.SnapshotPath == "" {
-		return ""
+// alertFiles devuelve los ficheros en disco de una alerta (snapshot y clip de vídeo).
+func (s *Service) alertFiles(a models.MotionAlert) []string {
+	var files []string
+	for _, p := range []string{a.SnapshotPath, a.ClipPath} {
+		if p != "" {
+			files = append(files, filepath.Join(s.dir, filepath.Base(p)))
+		}
 	}
-	return filepath.Join(s.dir, filepath.Base(a.SnapshotPath))
+	return files
+}
+
+func (s *Service) alertSize(a models.MotionAlert) int64 {
+	var total int64
+	for _, f := range s.alertFiles(a) {
+		total += fileSize(f)
+	}
+	return total
 }
 
 func (s *Service) deleteAlerts(alerts []models.MotionAlert) (int64, error) {
@@ -173,7 +186,7 @@ func (s *Service) deleteAlerts(alerts []models.MotionAlert) (int64, error) {
 	}
 	var freed int64
 	for _, a := range alerts {
-		if p := s.snapshotDiskPath(a); p != "" {
+		for _, p := range s.alertFiles(a) {
 			size := fileSize(p)
 			if err := os.Remove(p); err == nil {
 				freed += size
@@ -198,7 +211,8 @@ func (s *Service) removeOrphans() (int, int64, error) {
 	count := 0
 	var freed int64
 	for _, e := range entries {
-		if e.IsDir() || referenced[e.Name()] {
+		// Ocultos: ficheros temporales de escritura (p. ej. ".clip_1.mp4.tmp")
+		if e.IsDir() || referenced[e.Name()] || strings.HasPrefix(e.Name(), ".") && s.now().Sub(modTime(e)) < orphanGrace {
 			continue
 		}
 		info, err := e.Info()
@@ -211,6 +225,13 @@ func (s *Service) removeOrphans() (int, int64, error) {
 		}
 	}
 	return count, freed, nil
+}
+
+func modTime(e os.DirEntry) time.Time {
+	if info, err := e.Info(); err == nil {
+		return info.ModTime()
+	}
+	return time.Time{}
 }
 
 func fileSize(p string) int64 {
@@ -266,13 +287,15 @@ func (g GormStore) DeleteAlerts(ids []uint) error {
 }
 
 func (g GormStore) SnapshotFiles() (map[string]bool, error) {
-	var paths []string
-	if err := g.DB.Model(&models.MotionAlert{}).Where("snapshot_path <> ''").Pluck("snapshot_path", &paths).Error; err != nil {
-		return nil, err
-	}
-	files := make(map[string]bool, len(paths))
-	for _, p := range paths {
-		files[filepath.Base(p)] = true
+	files := map[string]bool{}
+	for _, col := range []string{"snapshot_path", "clip_path"} {
+		var paths []string
+		if err := g.DB.Model(&models.MotionAlert{}).Where(col+" <> ''").Pluck(col, &paths).Error; err != nil {
+			return nil, err
+		}
+		for _, p := range paths {
+			files[filepath.Base(p)] = true
+		}
 	}
 	return files, nil
 }

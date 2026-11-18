@@ -83,6 +83,9 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 | `ADMIN_INITIAL_PASSWORD` | Password del usuario `admin` al crear la BD vacía. Si no se define, se genera y se imprime una vez en el log | *(aleatoria)* |
 | `ALERT_RETENTION_DAYS` | Días que se conservan alertas y snapshots (0 = sin límite). Limpieza cada hora | `30` |
 | `ALERT_MAX_STORAGE_MB` | Espacio máximo de snapshots; al superarlo se borran las alertas más antiguas (0 = sin límite) | `2048` |
+| `CLIPS_ENABLED` | Extrae un clip de vídeo por alerta del búfer de grabación de MediaMTX | `true` |
+| `MEDIAMTX_PLAYBACK_URL` | Servidor de playback de MediaMTX (interno) | `http://localhost:9996` |
+| `CLIP_PRE_SECONDS` / `CLIP_POST_SECONDS` | Ventana del clip respecto a la alerta (Motion la emite al final del evento) | `30` / `5` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Claves Web Push. Si no se definen se generan una vez y se guardan en la tabla `app_settings` | *(generadas)* |
 | `VAPID_SUBJECT` | Contacto VAPID (`https://...` o `mailto:...`) | `https://github.com/big-brother-cctv` |
 | `TZ` | Zona horaria (hora mostrada en las notificaciones) | `UTC` |
