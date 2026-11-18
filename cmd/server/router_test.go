@@ -50,7 +50,7 @@ func setupTestRouter(t *testing.T, allowRegistration bool) (*gin.Engine, *auth.J
 		AlertsDir:         alertsDir,
 	}
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
-	r := newRouter(cfg, nil, jwtSvc, mediamtx.NewService(cfg), alerts.NewHub())
+	r := newRouter(cfg, nil, jwtSvc, mediamtx.NewService(cfg), alerts.NewHub(), nil)
 	return r, jwtSvc, alertsDir
 }
 

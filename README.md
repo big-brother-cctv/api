@@ -32,6 +32,9 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 - `POST /api/auth/register`: Auto-registro **desactivado por defecto** (`ALLOW_REGISTRATION=true` para activarlo). Siempre crea usuarios `viewer`.
 - `POST /api/media/session`: (Bearer) Emite la cookie HttpOnly `bb_media` que autoriza SSE, snapshots y streams.
 - `DELETE /api/media/session`: Borra la cookie de medios (logout).
+- `GET /api/push/vapid-public-key`: Clave VAPID pública para `pushManager.subscribe()`.
+- `POST /api/push/subscriptions` / `DELETE /api/push/subscriptions`: Alta/baja de la suscripción Web Push del navegador (solo endpoints de servicios push conocidos: FCM, Mozilla, Apple, WNS).
+- `POST /api/push/test`: Notificación de prueba a los dispositivos del usuario.
 - `GET /api/media/publish-credentials`: (admin/operator) Usuario y clave para publicar desde móviles/OBS en MediaMTX.
 - `POST /internal/mediamtx/auth`: Endpoint `authHTTPAddress` de MediaMTX (`authMethod: http`). Fuera de `/api` para que el nginx público no lo exponga.
 - `GET /api/media/check`: 204 si la petición trae credenciales de medios válidas. Lo usa nginx (`auth_request`) para `/stream/` y `/whep/`.
@@ -48,7 +51,7 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 ### Alertas y Detección de Movimiento
 - `POST /api/alerts`: Ingesta de nueva alerta con snapshot forense (solo Internal Token: cabecera `X-Internal-Token`, `token` en form o query).
 - `GET /api/alerts/stream`: Flujo en tiempo real Server-Sent Events (SSE). Requiere Bearer o cookie `bb_media`.
-- `GET /api/alerts/snapshots/<fichero>`: Capturas. Requiere Bearer o cookie `bb_media`.
+- `GET /api/alerts/snapshots/<fichero>`: Capturas. Requiere Bearer, cookie `bb_media` o URL firmada (`?exp=&sig=`, 24 h, la que llevan las notificaciones push).
 - `GET /api/alerts`: Consulta paginada de alertas con filtros de estado y cámara.
 - `GET /api/alerts/unread-count`: Contador de alertas pendientes de acuse de recibo.
 - `POST|PUT /api/alerts/:id/ack`: Acuse de recibo de una alerta.
@@ -80,6 +83,9 @@ Backend central y API REST de alto rendimiento desarrollado en **Go (Golang)** c
 | `ADMIN_INITIAL_PASSWORD` | Password del usuario `admin` al crear la BD vacía. Si no se define, se genera y se imprime una vez en el log | *(aleatoria)* |
 | `ALERT_RETENTION_DAYS` | Días que se conservan alertas y snapshots (0 = sin límite). Limpieza cada hora | `30` |
 | `ALERT_MAX_STORAGE_MB` | Espacio máximo de snapshots; al superarlo se borran las alertas más antiguas (0 = sin límite) | `2048` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Claves Web Push. Si no se definen se generan una vez y se guardan en la tabla `app_settings` | *(generadas)* |
+| `VAPID_SUBJECT` | Contacto VAPID (`https://...` o `mailto:...`) | `https://github.com/big-brother-cctv` |
+| `TZ` | Zona horaria (hora mostrada en las notificaciones) | `UTC` |
 | `ALLOW_REGISTRATION` | Habilita `POST /api/auth/register` (crea solo `viewer`) | `false` |
 | `MEDIAMTX_API_URL` | URL de la API v3 de MediaMTX | `http://localhost:9997` |
 | `MEDIAMTX_RTSP_HOST` | Host RTSP para generar URLs de streaming | `localhost` |

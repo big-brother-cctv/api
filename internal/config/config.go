@@ -29,6 +29,9 @@ type Config struct {
 	DataDir              string
 	AlertsDir            string
 	AlertRetentionDays   int
+	VAPIDPublicKey       string
+	VAPIDPrivateKey      string
+	VAPIDSubject         string
 	AlertMaxStorageMB    int
 }
 
@@ -92,6 +95,9 @@ func LoadConfig() *Config {
 		DataDir:              dataDir,
 		AlertsDir:            alertsDir,
 		AlertRetentionDays:   getEnvInt("ALERT_RETENTION_DAYS", 30),
+		VAPIDPublicKey:       os.Getenv("VAPID_PUBLIC_KEY"),
+		VAPIDPrivateKey:      os.Getenv("VAPID_PRIVATE_KEY"),
+		VAPIDSubject:         os.Getenv("VAPID_SUBJECT"),
 		AlertMaxStorageMB:    getEnvInt("ALERT_MAX_STORAGE_MB", 2048),
 	}
 }

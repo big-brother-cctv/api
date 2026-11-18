@@ -22,7 +22,7 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	// Migraciones automáticas manteniendo nombres de tabla users, cameras y alerts
-	if err := db.AutoMigrate(&models.User{}, &models.Camera{}, &models.MotionAlert{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Camera{}, &models.MotionAlert{}, &models.PushSubscription{}, &models.AppSetting{}); err != nil {
 		return nil, err
 	}
 

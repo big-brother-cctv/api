@@ -113,3 +113,29 @@ type MotionAlert struct {
 func (MotionAlert) TableName() string {
 	return "alerts"
 }
+
+// PushSubscription es una suscripción Web Push (RFC 8030/8291) de un navegador o PWA.
+type PushSubscription struct {
+	ID            uint       `gorm:"primaryKey" json:"id"`
+	Username      string     `gorm:"index;not null" json:"username"`
+	Endpoint      string     `gorm:"uniqueIndex;not null" json:"endpoint"`
+	P256dh        string     `gorm:"not null" json:"-"`
+	Auth          string     `gorm:"not null" json:"-"`
+	UserAgent     string     `json:"userAgent"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	LastSuccessAt *time.Time `json:"lastSuccessAt"`
+}
+
+func (PushSubscription) TableName() string {
+	return "push_subscriptions"
+}
+
+// AppSetting guarda valores internos persistentes (p. ej. las claves VAPID generadas).
+type AppSetting struct {
+	Key   string `gorm:"primaryKey;size:64"`
+	Value string `gorm:"type:text;not null"`
+}
+
+func (AppSetting) TableName() string {
+	return "app_settings"
+}
