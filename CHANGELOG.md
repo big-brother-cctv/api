@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.1](https://github.com/big-brother-cctv/api/compare/v1.5.0...v1.5.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* treat missing recording directory as "no recording yet" when waiting for clips ([a64a6f6](https://github.com/big-brother-cctv/api/commit/a64a6f62d480a58cb274fa95d74da1ccf59b00bc))
+* treat missing recording directory as "no recording yet" when waiting for clips ([c568512](https://github.com/big-brother-cctv/api/commit/c568512df364506ea80a52cda3f240a689c6ee8e))
+
 ## [1.5.0](https://github.com/big-brother-cctv/api/compare/v1.4.0...v1.5.0) (2026-11-18)
 
 
