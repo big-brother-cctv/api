@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/big-brother-cctv/api/compare/v1.2.0...v1.3.0) (2026-11-18)
+
+
+### Features
+
+* web push notifications for motion alerts (ADR-005) ([65e91cf](https://github.com/big-brother-cctv/api/commit/65e91cf31f977a8e2fa6e87def5dc307e829094f))
+* web push notifications for motion alerts (ADR-005) ([a0fcb22](https://github.com/big-brother-cctv/api/commit/a0fcb225cd041245e253144203200a397ecbb8c5))
+
 ## [1.2.0](https://github.com/big-brother-cctv/api/compare/v1.1.0...v1.2.0) (2026-11-18)
 
 
