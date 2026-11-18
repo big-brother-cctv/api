@@ -108,6 +108,8 @@ type MotionAlert struct {
 	Confidence   float64   `gorm:"default:1.0" json:"confidence"`
 	Acknowledged bool      `gorm:"default:false;index" json:"acknowledged"`
 	Severity     string    `gorm:"default:'warning'" json:"severity"` // 'info', 'warning', 'critical'
+	// Notified indica si la alerta avisó (push/toast/alarma) según el modo casa/fuera.
+	Notified bool `gorm:"default:false" json:"notified"`
 }
 
 func (MotionAlert) TableName() string {
