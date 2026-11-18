@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/big-brother-cctv/api/compare/v1.3.0...v1.4.0) (2026-11-18)
+
+
+### Features
+
+* home/away mode with per-class notification rules ([84d2013](https://github.com/big-brother-cctv/api/commit/84d2013ac8050a12d653bb17ee5300dadbc559dc))
+* home/away mode with per-class notification rules ([d102aa4](https://github.com/big-brother-cctv/api/commit/d102aa4f7f2315bab01bf787280ba5e65b772d70))
+
 ## [1.3.0](https://github.com/big-brother-cctv/api/compare/v1.2.0...v1.3.0) (2026-11-18)
 
 
