@@ -128,8 +128,11 @@ func (s *Service) covered(ctx context.Context, path string, start, end time.Time
 	if err != nil {
 		return false, err
 	}
-	if status == http.StatusNotFound {
-		return false, nil // aún no hay grabación para ese tramo
+	// Sin grabación aún: 404, o 400 "lstat /recordings/<path>: no such file or directory"
+	// (MediaMTX v1.21 responde así si la carpeta de la cámara todavía no existe)
+	if status == http.StatusNotFound ||
+		(status == http.StatusBadRequest && strings.Contains(string(body), "no such file or directory")) {
+		return false, nil
 	}
 	if status != http.StatusOK {
 		return false, fmt.Errorf("/list respondió %d", status)
